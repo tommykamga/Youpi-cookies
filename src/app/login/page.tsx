@@ -19,17 +19,24 @@ export default function LoginPage() {
         setLoading(true);
         setError(null);
 
-        const { error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        });
+        try {
+            const { error: signInError } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            });
 
-        if (error) {
-            setError("Identifiants incorrects ou problème de connexion.");
+            if (signInError) {
+                console.error("Sign-in error details:", signInError);
+                setError(signInError.message || "Identifiants incorrects ou problème de connexion.");
+            } else {
+                router.push("/");
+                router.refresh();
+            }
+        } catch (err: any) {
+            console.error("Unexpected login error:", err);
+            setError("Une erreur inattendue est survenue.");
+        } finally {
             setLoading(false);
-        } else {
-            router.push("/");
-            router.refresh();
         }
     };
 

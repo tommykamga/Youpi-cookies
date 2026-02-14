@@ -23,19 +23,40 @@ interface NavItem {
     name: string;
     href: string;
     icon: any;
-    roles?: Role[]; // If empty, visible to all
+    permission?: string;
 }
 
+// Permission helper
+const getUserPermissions = (role: Role | null) => {
+    // Fallback permissions if role fetch fails (minimal access)
+    if (!role) return ['dashboard', 'orders', 'products'];
+
+    const roleLower = role.toLowerCase();
+
+    // Admin sees everything
+    if (roleLower === 'admin') {
+        return ['dashboard', 'orders', 'contacts', 'products', 'stocks', 'billing', 'planning', 'rh', 'users'];
+    }
+
+    // Manager sees everything except users
+    if (roleLower === 'manager' || roleLower === 'gérant') {
+        return ['dashboard', 'orders', 'contacts', 'products', 'stocks', 'billing', 'planning', 'rh'];
+    }
+
+    // Default roles (Production, Sales, etc.)
+    return ['dashboard', 'orders', 'contacts', 'products', 'stocks', 'billing', 'planning'];
+};
+
 const navigation: NavItem[] = [
-    { name: "Dashboard", href: "/", icon: LayoutDashboard },
-    { name: "Commandes", href: "/commandes", icon: ShoppingBag },
-    { name: "Contacts", href: "/contacts", icon: Users },
-    { name: "Produits", href: "/produits", icon: Cookie },
-    { name: "Stocks", href: "/stocks", icon: Package },
-    { name: "Facturation", href: "/facturation", icon: FileText },
-    { name: "Planning", href: "/planning", icon: Calendar },
-    { name: "RH", href: "/rh", icon: Users, roles: ['admin', 'manager'] },
-    { name: "Utilisateurs", href: "/utilisateurs", icon: Settings, roles: ['admin'] },
+    { name: "Dashboard", href: "/", icon: LayoutDashboard, permission: 'dashboard' },
+    { name: "Commandes", href: "/commandes", icon: ShoppingBag, permission: 'orders' },
+    { name: "Contacts", href: "/contacts", icon: Users, permission: 'contacts' },
+    { name: "Produits", href: "/produits", icon: Cookie, permission: 'products' },
+    { name: "Stocks", href: "/stocks", icon: Package, permission: 'stocks' },
+    { name: "Facturation", href: "/facturation", icon: FileText, permission: 'billing' },
+    { name: "Planning", href: "/planning", icon: Calendar, permission: 'planning' },
+    { name: "RH", href: "/rh", icon: Users, permission: 'rh' },
+    { name: "Utilisateurs", href: "/utilisateurs", icon: Settings, permission: 'users' },
 ];
 
 interface SidebarProps {
@@ -53,16 +74,37 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     useEffect(() => {
         const fetchUserRole = async () => {
             const { data: { user } } = await supabase.auth.getUser();
+
             if (user) {
-                const { data: profile } = await supabase
+                // Try fetching from 'profiles'
+                let { data: profile, error } = await supabase
                     .from('profiles')
                     .select('role')
                     .eq('id', user.id)
                     .single();
 
+                // Fallback to 'users' if 'profiles' fails (404/error)
+                if (error || !profile) {
+                    console.warn('🔍 Profiles fetch failed, trying users table...', error?.message);
+                    const { data: userTable } = await supabase
+                        .from('users')
+                        .select('role')
+                        .eq('id', user.id)
+                        .single();
+                    if (userTable) profile = userTable;
+                }
+
                 if (profile) {
                     setUserRole(profile.role as Role);
                 }
+
+                // 🔍 USER DEBUG SNIPPET
+                console.log('🔍 USER DEBUG:', {
+                    role_in_db: profile?.role,
+                    email: user?.email,
+                    id: user?.id,
+                    permissions: getUserPermissions(profile?.role as Role)
+                });
             }
             setLoading(false);
         };
@@ -75,10 +117,12 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         router.refresh();
     };
 
-    // Filtered navigation
+    // Filtered navigation using the new helper
+    const userPermissions = getUserPermissions(userRole);
     const filteredNav = navigation.filter(item =>
-        !item.roles || (userRole && item.roles.includes(userRole))
+        !item.permission || userPermissions.includes(item.permission)
     );
+
 
     return (
         <aside className={`
@@ -110,18 +154,24 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                                 href={item.href}
                                 onClick={onClose}
                                 className={clsx(
-                                    "menu-link flex items-center gap-3",
+                                    "menu-link group transition-all duration-200",
                                     isActive
-                                        ? "bg-[var(--cookie-brown-light)] text-white"
-                                        : "text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-white"
+                                        ? "bg-[var(--cookie-brown-light)] text-white shadow-md translate-x-1"
+                                        : "text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-white hover:translate-x-1"
                                 )}
                             >
-                                <item.icon className="h-5 w-5" />
-                                {item.name}
+                                <div className={clsx(
+                                    "flex-shrink-0 flex items-center justify-center w-6 h-6 transition-transform group-hover:scale-110",
+                                    isActive ? "text-[var(--cookie-accent)]" : "text-white/70"
+                                )}>
+                                    <item.icon className="h-5 w-5" />
+                                </div>
+                                <span className="font-medium truncate">{item.name}</span>
                             </Link>
                         );
                     })
                 )}
+
             </nav>
 
             <div className="absolute bottom-0 w-full p-4 border-t border-[#6D4C41] bg-[var(--sidebar-bg)]">

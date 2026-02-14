@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Loader2, Trash2, Image as ImageIcon, Upload, X } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { Product } from "@/types";
-import { mockProducts } from "../page";
+import { mockProducts } from "@/config/mock-data";
 
 export default function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
