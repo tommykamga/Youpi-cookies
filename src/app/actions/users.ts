@@ -35,7 +35,7 @@ export async function updateUser(userId: string, data: {
 
     try {
         // 2. Update Public Profile (profiles table)
-        const profileUpdates: any = {};
+        const profileUpdates: Record<string, unknown> = {};
         if (data.fullName !== undefined) profileUpdates.full_name = data.fullName;
         if (data.role !== undefined) profileUpdates.role = data.role;
         if (data.active !== undefined) profileUpdates.active = data.active;
@@ -71,8 +71,9 @@ export async function updateUser(userId: string, data: {
             const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
             if (serviceRoleKey) {
-                const { createClient: createAdminClient } = require('@supabase/supabase-js');
-                const supabaseAdmin = createAdminClient(
+                // Use dynamic import for admin client to avoid issues with standard client
+                const { createClient: createSupbaseAdmin } = await import('@supabase/supabase-js');
+                const supabaseAdmin = createSupbaseAdmin(
                     process.env.NEXT_PUBLIC_SUPABASE_URL!,
                     serviceRoleKey,
                     {
