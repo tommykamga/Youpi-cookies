@@ -140,7 +140,7 @@ export default function NewOrderPage() {
                                 >
                                     <option value="">Sélectionner un client...</option>
                                     {customers.map(c => (
-                                        <option key={c.id} value={c.id}>{c.name}</option>
+                                        <option key={c.id} value={c.id}>{c.company_name || c.name}</option>
                                     ))}
                                 </select>
                             </div>

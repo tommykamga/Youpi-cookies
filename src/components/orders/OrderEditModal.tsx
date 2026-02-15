@@ -147,7 +147,7 @@ export default function OrderEditModal({ isOpen, onClose, order, onSave }: Order
                                     <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Client</label>
                                         <div className="font-medium text-gray-900 text-lg">
-                                            {formData.customer?.name || "Client Inconnu"}
+                                            {formData.customer?.company_name || formData.customer?.name || "Client Inconnu"}
                                         </div>
                                     </div>
                                     <div>

@@ -239,9 +239,9 @@ export default function OrdersPage() {
                                             <td className="px-6 py-4 font-medium">
                                                 <div className="flex items-center gap-2">
                                                     <div className="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">
-                                                        {(order.customer as any)?.name?.substring(0, 2).toUpperCase() || "??"}
+                                                        {((order.customer as any)?.company_name || (order.customer as any)?.name || "??").substring(0, 2).toUpperCase()}
                                                     </div>
-                                                    {(order.customer as any)?.name}
+                                                    {(order.customer as any)?.company_name || (order.customer as any)?.name}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-gray-500">
