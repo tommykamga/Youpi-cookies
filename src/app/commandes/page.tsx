@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Search, Filter, MoreHorizontal, FileText, Copy, ArrowRight, Pencil, Calendar, X, ChevronDown, Loader2 } from "lucide-react";
+import { Plus, Search, Filter, Calendar, Loader2, Pencil, Copy, Eye, Trash2 } from "lucide-react";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { Order } from "@/types";
 import OrderEditModal from "@/components/orders/OrderEditModal";
@@ -117,6 +117,24 @@ export default function OrdersPage() {
         }
     };
 
+    const handleDeleteOrder = async (orderId: string) => {
+        try {
+            const { error: deleteError } = await supabase
+                .from('orders')
+                .delete()
+                .eq('id', orderId);
+
+            if (deleteError) throw deleteError;
+
+            // Refresh local state
+            setOrders(orders.filter(o => o.id !== orderId));
+            alert("Commande supprimée avec succès !");
+        } catch (err: any) {
+            console.error("Error deleting order:", err);
+            alert(`Erreur lors de la suppression: ${err.message}`);
+        }
+    };
+
     const handleDuplicate = (order: Partial<Order>) => {
         const newOrder = {
             ...order,
@@ -135,6 +153,7 @@ export default function OrdersPage() {
                 onClose={() => setIsModalOpen(false)}
                 order={selectedOrder}
                 onSave={handleSaveOrder}
+                onDelete={handleDeleteOrder}
             />
 
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -333,6 +352,18 @@ export default function OrdersPage() {
                                                         title="Dupliquer"
                                                     >
                                                         <Copy className="h-4 w-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => { 
+                                                            e.stopPropagation(); 
+                                                            if (window.confirm("Êtes-vous sûr de vouloir supprimer cette commande ?")) {
+                                                                handleDeleteOrder(order.id!);
+                                                            }
+                                                        }}
+                                                        className="p-1.5 hover:bg-gray-100 rounded text-gray-500 hover:text-red-600"
+                                                        title="Supprimer"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
                                                     </button>
                                                 </div>
                                             </td>

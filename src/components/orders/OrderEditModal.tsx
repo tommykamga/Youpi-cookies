@@ -1,6 +1,6 @@
 "use client";
 
-import { X, Save, Plus, Trash2, FileText } from "lucide-react";
+import { X, Plus, Trash2, Save, FileText, Loader2, Pencil } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Order, Product } from "@/types";
 import { formatPrice } from "@/config/currency";
@@ -12,6 +12,7 @@ interface OrderEditModalProps {
     onClose: () => void;
     order: Partial<Order> | null;
     onSave: (updatedOrder: Partial<Order>) => void;
+    onDelete?: (orderId: string) => void;
 }
 
 // Removed mockProducts array
@@ -19,7 +20,7 @@ interface OrderEditModalProps {
 // Use a small helper for order item type safely
 type OrderItemInput = { productId: string; quantity: number };
 
-export default function OrderEditModal({ isOpen, onClose, order, onSave }: OrderEditModalProps) {
+export default function OrderEditModal({ isOpen, onClose, order, onSave, onDelete }: OrderEditModalProps) {
     const supabase = createClient();
     const [formData, setFormData] = useState<Partial<Order>>({});
     const [items, setItems] = useState<OrderItemInput[]>([]);
@@ -278,6 +279,20 @@ export default function OrderEditModal({ isOpen, onClose, order, onSave }: Order
                                 <button className="p-2 text-gray-500 hover:text-gray-900 hover:bg-white rounded-lg border border-transparent hover:border-gray-200 transition-all" title="Générer PDF">
                                     <FileText className="h-5 w-5" />
                                 </button>
+                                {onDelete && order && (
+                                    <button
+                                        onClick={() => {
+                                            if (window.confirm("Êtes-vous sûr de vouloir supprimer cette commande ?")) {
+                                                onDelete(order.id!);
+                                                onClose();
+                                            }
+                                        }}
+                                        className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-all"
+                                        title="Supprimer la commande"
+                                    >
+                                        <Trash2 className="h-5 w-5" />
+                                    </button>
+                                )}
                                 <button
                                     onClick={onClose}
                                     className="px-4 py-2 text-gray-600 hover:text-gray-900 font-medium"
