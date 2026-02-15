@@ -89,8 +89,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 .getPublicUrl(filePath);
 
             return publicUrl;
-        } catch (error) {
-            console.error('Error uploading image:', error);
+        } catch (error: any) {
+            console.error('Error uploading image:', error?.message || error);
             return null;
         }
     };
@@ -135,8 +135,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             .eq('id', id);
 
         if (error) {
-            console.error('Error updating product:', error);
-            alert("Erreur lors de la modification du produit.");
+            console.error('Error updating product:', error.message, error.details);
+            alert(`Erreur lors de la modification du produit: ${error.message}`);
         } else {
             router.push("/produits");
         }

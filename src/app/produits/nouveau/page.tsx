@@ -58,8 +58,8 @@ export default function NewProductPage() {
                 .getPublicUrl(filePath);
 
             return publicUrl;
-        } catch (error) {
-            console.error('Error uploading image:', error);
+        } catch (error: any) {
+            console.error('Error uploading image:', error?.message || error);
             return null;
         }
     };
@@ -99,8 +99,8 @@ export default function NewProductPage() {
             });
 
         if (error) {
-            console.error('Error creating product:', error);
-            alert("Erreur lors de la création du produit. Vérifiez la connexion à la base de données.");
+            console.error('Error creating product:', error.message, error.details);
+            alert(`Erreur lors de la création du produit: ${error.message}`);
         } else {
             router.push("/produits");
         }
