@@ -218,12 +218,12 @@ CREATE POLICY "Any authenticated user can insert products" ON products
 
 CREATE POLICY "Admins can update products" ON products 
   FOR UPDATE TO authenticated 
-  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT')))
-  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT')));
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin')))
+  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin')));
 
 CREATE POLICY "Admins can delete products" ON products 
   FOR DELETE TO authenticated 
-  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT')));
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin')));
 
 CREATE POLICY "Customers are viewable by authenticated users" ON customers FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Any authenticated user can insert customers" ON customers 
@@ -231,35 +231,35 @@ CREATE POLICY "Any authenticated user can insert customers" ON customers
   WITH CHECK (true);
 
 CREATE POLICY "Commercials and Admins can update customers" ON customers FOR UPDATE TO authenticated 
-  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT', 'RESPONSABLE_COMMERCIALE')))
-  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT', 'RESPONSABLE_COMMERCIALE')));
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin', 'responsable_commerciale', 'commercial')))
+  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin', 'responsable_commerciale', 'commercial')));
 
 CREATE POLICY "Commercials and Admins can delete customers" ON customers FOR DELETE TO authenticated 
-  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT', 'RESPONSABLE_COMMERCIALE')));
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin', 'responsable_commerciale', 'commercial')));
 
 -- Simplification radicale pour diagnostic de visibilité
 DROP POLICY IF EXISTS "Orders are viewable by authenticated users" ON orders;
 CREATE POLICY "Orders are viewable by authenticated users" ON orders FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Admins and Sales can insert orders" ON orders 
   FOR INSERT TO authenticated 
-  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT', 'RESPONSABLE_COMMERCIALE', 'VENTE')));
+  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin', 'responsable_commerciale', 'commercial', 'vente', 'sales')));
 
 CREATE POLICY "Admins and Sales can update orders" ON orders 
   FOR UPDATE TO authenticated 
-  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT', 'RESPONSABLE_COMMERCIALE', 'VENTE')))
-  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT', 'RESPONSABLE_COMMERCIALE', 'VENTE')));
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin', 'responsable_commerciale', 'commercial', 'vente', 'sales')))
+  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin', 'responsable_commerciale', 'commercial', 'vente', 'sales')));
 
 CREATE POLICY "Admins and Sales can delete orders" ON orders 
   FOR DELETE TO authenticated 
-  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT', 'RESPONSABLE_COMMERCIALE', 'VENTE')));
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin', 'responsable_commerciale', 'commercial', 'vente', 'sales')));
 
 -- Simplification radicale pour diagnostic de visibilité
 DROP POLICY IF EXISTS "Order items are viewable by authenticated users" ON order_items;
 CREATE POLICY "Order items are viewable by authenticated users" ON order_items FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Admins and Sales can manage order items" ON order_items 
   FOR ALL TO authenticated 
-  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT', 'RESPONSABLE_COMMERCIALE', 'VENTE')))
-  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT', 'RESPONSABLE_COMMERCIALE', 'VENTE')));
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin', 'responsable_commerciale', 'commercial', 'vente', 'sales')))
+  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin', 'responsable_commerciale', 'commercial', 'vente', 'sales')));
 
 -- TASKS
 CREATE POLICY "Tasks are viewable by authenticated users" ON tasks FOR SELECT TO authenticated USING (true);

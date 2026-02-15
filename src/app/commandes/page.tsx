@@ -119,18 +119,29 @@ export default function OrdersPage() {
 
     const handleDeleteOrder = async (orderId: string) => {
         try {
-            const { error: deleteError } = await supabase
+            console.log(`[Diagnostic] Attempting to delete order: ${orderId}`);
+            
+            const { data, error, count } = await supabase
                 .from('orders')
                 .delete()
-                .eq('id', orderId);
+                .eq('id', orderId)
+                .select(); // Requesting data back to verify deletion
 
-            if (deleteError) throw deleteError;
+            if (error) throw error;
+
+            if (!data || data.length === 0) {
+                console.warn(`[Diagnostic] No rows deleted for ID: ${orderId}. This usually means an RLS policy blocked the action.`);
+                alert("Erreur : La commande n'a pas pu être supprimée. Vérifiez vos permissions ou si la commande existe encore.");
+                return;
+            }
+
+            console.log(`[Diagnostic] Successfully deleted order: ${orderId}`);
 
             // Refresh local state
             setOrders(orders.filter(o => o.id !== orderId));
             alert("Commande supprimée avec succès !");
         } catch (err: any) {
-            console.error("Error deleting order:", err);
+            console.error("[Diagnostic] Error deleting order:", err);
             alert(`Erreur lors de la suppression: ${err.message}`);
         }
     };
