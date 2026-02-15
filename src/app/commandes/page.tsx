@@ -32,7 +32,10 @@ export default function OrdersPage() {
                     .select('*, customer:customers(*)')
                     .order('created_at', { ascending: false });
 
-                if (error) throw error;
+                if (error) {
+                    console.error("[Diagnostic] FETCH ERROR:", error.message, error.details, error.hint);
+                    throw error;
+                }
                 
                 // Professional Diagnostic Logging
                 console.log(`[Diagnostic] Orders fetched: ${data?.length || 0}`);
@@ -40,6 +43,8 @@ export default function OrdersPage() {
                     console.log("[Diagnostic] RAW Data structure:", data[0]);
                     console.log("[Diagnostic] Customer object:", data[0].customer);
                     console.log("[Diagnostic] Customer Name:", (data[0].customer as any)?.name);
+                } else {
+                    console.log("[Diagnostic] Data is empty but no error was thrown.");
                 }
 
                 setOrders(data || []);
