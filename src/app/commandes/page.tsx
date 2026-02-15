@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Search, Filter, Calendar, Loader2, Pencil, Copy, Eye, Trash2 } from "lucide-react";
+import { Plus, Search, Filter, Calendar, Loader2, Pencil, Copy, FileText, ChevronDown, Trash2 } from "lucide-react";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { Order } from "@/types";
 import OrderEditModal from "@/components/orders/OrderEditModal";
