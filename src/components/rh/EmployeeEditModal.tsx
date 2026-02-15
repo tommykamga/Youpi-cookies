@@ -5,6 +5,7 @@ import { X, Save, User, Banknote, Calendar, Eye, EyeOff, Briefcase, FileText, Tr
 import { Employee, EmployeeRole } from "@/types";
 import { formatPrice } from "@/config/currency";
 import { motion, AnimatePresence } from "framer-motion";
+import { createClient } from "@/lib/supabase";
 
 interface EmployeeEditModalProps {
     isOpen: boolean;
@@ -24,6 +25,7 @@ const ROLES: EmployeeRole[] = [
 ];
 
 export default function EmployeeEditModal({ isOpen, onClose, employee, onSave, onDelete, onArchive, canViewSalary = true }: EmployeeEditModalProps) {
+    const supabase = createClient();
     const [formData, setFormData] = useState<Partial<Employee>>({});
     const [showSalary, setShowSalary] = useState(false);
     const [activeTab, setActiveTab] = useState<'info' | 'contract' | 'history'>('info');
@@ -33,8 +35,20 @@ export default function EmployeeEditModal({ isOpen, onClose, employee, onSave, o
     const [newPayment, setNewPayment] = useState({ date: new Date().toISOString().split('T')[0], amount: 0 });
 
     useEffect(() => {
+        const fetchHistory = async () => {
+            if (employee?.id) {
+                const { data } = await supabase
+                    .from('employee_payments')
+                    .select('*')
+                    .eq('employee_id', employee.id)
+                    .order('date', { ascending: false });
+                if (data) setFormData(prev => ({ ...prev, paymentHistory: data }));
+            }
+        };
+
         if (employee) {
             setFormData(employee);
+            fetchHistory();
         } else {
             setFormData({
                 active: true,
@@ -42,7 +56,7 @@ export default function EmployeeEditModal({ isOpen, onClose, employee, onSave, o
                 hireDate: new Date().toISOString().split('T')[0]
             });
         }
-    }, [employee, isOpen]);
+    }, [employee, isOpen, supabase]);
 
     useEffect(() => {
         if (isAddingPayment && formData.salary) {
@@ -59,24 +73,30 @@ export default function EmployeeEditModal({ isOpen, onClose, employee, onSave, o
         onClose();
     };
 
-    const confirmAddPayment = () => {
-        let updatedHistory = [...(formData.paymentHistory || [])];
+    const confirmAddPayment = async () => {
+        if (!formData.id) return;
 
-        if (editingPaymentIndex !== null) {
-            updatedHistory[editingPaymentIndex] = { ...newPayment };
-            setEditingPaymentIndex(null);
-        } else {
-            updatedHistory.push({ ...newPayment });
+        const { data, error } = await supabase
+            .from('employee_payments')
+            .insert([{
+                employee_id: formData.id,
+                amount: newPayment.amount,
+                date: newPayment.date
+            }])
+            .select();
+
+        if (data) {
+            const updatedHistory = [...(formData.paymentHistory || []), data[0]];
+            updatedHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            setFormData(prev => ({
+                ...prev,
+                paymentHistory: updatedHistory,
+                lastPaymentDate: newPayment.date
+            }));
+            
+            // Also update lastPaymentDate on employee if it's the latest
+            await supabase.from('employees').update({ lastPaymentDate: newPayment.date }).eq('id', formData.id);
         }
-
-        // Sort by date desc
-        updatedHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-        setFormData(prev => ({
-            ...prev,
-            paymentHistory: updatedHistory,
-            lastPaymentDate: editingPaymentIndex === null ? newPayment.date : prev.lastPaymentDate // Only update last payment date on new? Or always? Let's keep it simple.
-        }));
         setIsAddingPayment(false);
         setNewPayment({ date: new Date().toISOString().split('T')[0], amount: formData.salary || 0 });
     };

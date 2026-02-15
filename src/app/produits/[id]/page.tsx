@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Loader2, Trash2, Image as ImageIcon, Upload, X } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { Product } from "@/types";
-import { mockProducts } from "@/config/mock-data";
 
 export default function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
@@ -38,21 +37,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
 
             if (error || !data) {
-                console.warn("Product not found in DB, using mock data if available.");
-                const mockProduct = mockProducts.find(p => p.id === id);
-
-                if (mockProduct) {
-                    setName(mockProduct.name);
-                    setPrice(mockProduct.price?.toString() || "0");
-                    setStock(mockProduct.stock?.toString() || "0");
-                    setUnit(mockProduct.unit || "");
-                    setAlertThreshold(mockProduct.alert_threshold?.toString() || "10");
-                    setImageUrl(mockProduct.image_url || "");
-                    setPreviewUrl(mockProduct.image_url || "");
-                } else {
-                    console.error("Error fetching product and no mock found:", error);
-                    router.push("/produits"); // Redirect if really not found
-                }
+                console.error("Error fetching product:", error);
+                router.push("/produits"); // Redirect if really not found
             } else if (data) {
                 const product = data as Product;
                 setName(product.name);
@@ -112,13 +98,6 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Check if it's a mock product
-        if (mockProducts.some(p => p.id === id)) {
-            alert("Modification simulée (Donnée fictive)");
-            router.push("/produits");
-            return;
-        }
-
         if (!name || !price) {
             alert("Veuillez remplir les champs obligatoires (Nom, Prix)");
             return;
@@ -166,13 +145,6 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
     const handleDelete = async () => {
         if (!confirm("Êtes-vous sûr de vouloir supprimer ce produit ?")) return;
-
-        // Check if it's a mock product
-        if (mockProducts.some(p => p.id === id)) {
-            alert("Suppression simulée (Donnée fictive)");
-            router.push("/produits");
-            return;
-        }
 
         const { error } = await supabase
             .from('products')

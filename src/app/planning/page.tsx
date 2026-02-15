@@ -1,24 +1,37 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Plus, Search, Filter, CheckCircle, Clock, AlertCircle, MoreHorizontal, Calendar, ArrowRight, Copy, Check, Trash2, LayoutList, Kanban, BookTemplate, Zap } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Plus, Search, Filter, CheckCircle, Clock, AlertCircle, MoreHorizontal, Calendar, ArrowRight, Copy, Check, Trash2, LayoutList, Kanban, BookTemplate, Zap, Loader2 } from "lucide-react";
 import { Task } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
 import TaskEditModal from "@/components/tasks/TaskEditModal";
+import { createClient } from "@/lib/supabase";
 
-// Mock Data
-const initialTasks: Partial<Task>[] = [
-    { id: "t1", title: "Relancer Client Martin", assigned_to: "Toi (Admin)", due_date: "2026-02-14", priority: "high", status: "todo", description: "Attente confirmation devis" },
-    { id: "t2", title: "Préparer commande #456", assigned_to: "Préparateur", due_date: "2026-02-13", priority: "medium", status: "in_progress", description: "Commande urgente pour weekend" },
-    { id: "t3", title: "Achat farine 50kg", assigned_to: "Gérant", due_date: "2026-02-16", priority: "low", status: "todo", description: "Stock bas" },
-    { id: "t4", title: "Nettoyage Four 2", assigned_to: "Préparateur", due_date: "2026-02-13", priority: "medium", status: "done", description: "Maintenance hebdo" }
-];
+// Removed mock data
 
 export default function TasksPage() {
-    const [tasks, setTasks] = useState(initialTasks);
+    const supabase = createClient();
+    const [tasks, setTasks] = useState<Partial<Task>[]>([]);
+    const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedTask, setSelectedTask] = useState<Partial<Task> | null>(null);
+
+    // Fetch Tasks
+    const fetchTasks = async () => {
+        setLoading(true);
+        const { data, error } = await supabase
+            .from('tasks')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if (data) setTasks(data);
+        setLoading(false);
+    };
+
+    useEffect(() => {
+        fetchTasks();
+    }, []);
 
     // Filters
     const [searchTerm, setSearchTerm] = useState("");
@@ -55,32 +68,59 @@ export default function TasksPage() {
         setIsModalOpen(true);
     };
 
-    const handleSave = (updated: Partial<Task>) => {
+    const handleSave = async (updated: Partial<Task>) => {
         if (!updated.id) {
             // Create
-            updated.id = Math.random().toString(36).substr(2, 9);
-            updated.created_at = new Date().toISOString();
-            setTasks([updated, ...tasks]);
+            const { data, error } = await supabase
+                .from('tasks')
+                .insert([updated])
+                .select();
+            if (data) setTasks([data[0], ...tasks]);
         } else {
             // Update
-            setTasks(prev => prev.map(t => t.id === updated.id ? updated : t));
+            const { error } = await supabase
+                .from('tasks')
+                .update(updated)
+                .eq('id', updated.id);
+            if (!error) {
+                setTasks(prev => prev.map(t => t.id === updated.id ? { ...t, ...updated } : t));
+            }
         }
+        setIsModalOpen(false);
     };
 
-    const handleDelete = (id: string) => {
-        setTasks(prev => prev.filter(t => t.id !== id));
+    const handleDelete = async (id: string) => {
+        const { error } = await supabase
+            .from('tasks')
+            .delete()
+            .eq('id', id);
+        if (!error) {
+            setTasks(prev => prev.filter(t => t.id !== id));
+        }
         setIsModalOpen(false);
     };
 
     const handleDuplicate = (task: Partial<Task>) => {
-        const copy = { ...task, id: undefined, title: `${task.title} (Copie)` };
+        const { id, created_at, updated_at, ...rest } = task;
+        const copy = { ...rest, title: `${task.title} (Copie)` };
         handleNewTask(copy);
     };
 
-    const toggleStatus = (id: string) => {
-        setTasks(prev => prev.map(t =>
-            t.id === id ? { ...t, status: t.status === 'done' ? 'todo' : 'done' } : t
-        ));
+    const toggleStatus = async (id: string) => {
+        const task = tasks.find(t => t.id === id);
+        if (!task) return;
+        const newStatus = task.status === 'done' ? 'todo' : 'done';
+        
+        const { error } = await supabase
+            .from('tasks')
+            .update({ status: newStatus })
+            .eq('id', id);
+            
+        if (!error) {
+            setTasks(prev => prev.map(t =>
+                t.id === id ? { ...t, status: newStatus } : t
+            ));
+        }
     };
 
     // Quick Templates
@@ -106,12 +146,18 @@ export default function TasksPage() {
                 <div>
                     <h1 className="text-2xl font-bold text-[var(--cookie-brown)]">Planning & Tâches</h1>
                     <p className="text-sm text-gray-500 flex items-center gap-2">
-                        {urgentTasksCount > 0 && (
-                            <span className="flex items-center gap-1 text-red-600 font-medium">
-                                <AlertCircle className="h-4 w-4" /> {urgentTasksCount} urgentes
-                            </span>
+                        {loading ? (
+                             <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <>
+                                {urgentTasksCount > 0 && (
+                                    <span className="flex items-center gap-1 text-red-600 font-medium">
+                                        <AlertCircle className="h-4 w-4" /> {urgentTasksCount} urgentes
+                                    </span>
+                                )}
+                                <span>• {tasks.filter(t => t.status === 'done').length} terminées</span>
+                            </>
                         )}
-                        <span>• {tasks.filter(t => t.status === 'done').length} terminées</span>
                     </p>
                 </div>
                 <div className="flex gap-2">

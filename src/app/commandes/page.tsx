@@ -1,77 +1,22 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Search, Filter, MoreHorizontal, FileText, Copy, ArrowRight, Pencil, Calendar, X, ChevronDown } from "lucide-react";
+import { Plus, Search, Filter, MoreHorizontal, FileText, Copy, ArrowRight, Pencil, Calendar, X, ChevronDown, Loader2 } from "lucide-react";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { Order } from "@/types";
 import OrderEditModal from "@/components/orders/OrderEditModal";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatPrice } from "@/config/currency";
 
-// Mock Data (Expanded for testing)
-const initialMockOrders: Partial<Order>[] = [
-    {
-        id: "CMD-001",
-        customer: { name: "Alice Dupont" } as any,
-        total_amount: 15000,
-        status: "new",
-        created_at: "2023-10-25",
-        items: [
-            { product_id: "1", quantity: 5 } as any,
-            { product_id: "2", quantity: 2 } as any
-        ]
-    },
-    {
-        id: "CMD-002",
-        customer: { name: "Boulangerie Paul" } as any,
-        total_amount: 45000,
-        status: "preparing",
-        created_at: "2023-10-25",
-        items: [{ product_id: "2", quantity: 20 } as any]
-    },
-    {
-        id: "CMD-003",
-        customer: { name: "Jean Martin" } as any,
-        total_amount: 8500,
-        status: "ready",
-        created_at: "2023-10-24",
-        items: [{ product_id: "3", quantity: 2 } as any]
-    },
-    {
-        id: "CMD-004",
-        customer: { name: "Café de la Gare" } as any,
-        total_amount: 120000,
-        status: "delivered",
-        created_at: "2023-10-24",
-        items: [{ product_id: "4", quantity: 15 } as any]
-    },
-    {
-        id: "CMD-005",
-        customer: { name: "Sophie Martin" } as any,
-        total_amount: 22000,
-        status: "paid",
-        created_at: "2023-10-23",
-        items: [{ product_id: "5", quantity: 10 } as any]
-    },
-    {
-        id: "CMD-123",
-        customer: { name: "Dupont" } as any,
-        total_amount: 250000, // 250€ approx 164000F but sticking to user request "250€" visual equivalent
-        status: "preparing",
-        created_at: "2023-10-26",
-        items: [
-            { product_id: "2", quantity: 50, product: { name: "Chocolat" } } as any,
-            { product_id: "5", quantity: 20, product: { name: "Vanille" } } as any
-        ],
-        notes: "Commande test demandée."
-    }
-];
+import { createClient } from "@/lib/supabase";
 
 export default function OrdersPage() {
-    const [orders, setOrders] = useState(initialMockOrders);
+    const [orders, setOrders] = useState<Partial<Order>[]>([]);
     const [selectedOrder, setSelectedOrder] = useState<Partial<Order> | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const supabase = createClient();
 
     // Filters State
     const [searchTerm, setSearchTerm] = useState("");
@@ -79,12 +24,32 @@ export default function OrdersPage() {
     const [dateRange, setDateRange] = useState({ start: "", end: "" });
     const [showFilters, setShowFilters] = useState(false);
 
+    useEffect(() => {
+        const fetchOrders = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('orders')
+                    .select('*, customer:customers(*)')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+                setOrders(data || []);
+            } catch (err) {
+                console.error("Error fetching orders:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchOrders();
+    }, []);
+
     // Filter Logic
     const filteredOrders = useMemo(() => {
         return orders.filter(order => {
             const matchesSearch =
                 order.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                order.customer?.name.toLowerCase().includes(searchTerm.toLowerCase());
+                (order.customer as any)?.name?.toLowerCase().includes(searchTerm.toLowerCase());
 
             const matchesStatus = statusFilter === "all" || order.status === statusFilter;
 
@@ -105,10 +70,16 @@ export default function OrdersPage() {
         setIsModalOpen(true);
     };
 
-    const handleSaveOrder = (updatedOrder: Partial<Order>) => {
-        setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
-        // Also perform DB update here
-        console.log("Saved order:", updatedOrder);
+    const handleSaveOrder = async (updatedOrder: Partial<Order>) => {
+        // Refresh local state after save
+        const { data, error } = await supabase
+            .from('orders')
+            .select('*, customer:customers(*)')
+            .order('created_at', { ascending: false });
+        
+        if (!error && data) {
+            setOrders(data);
+        }
     };
 
     const handleDuplicate = (order: Partial<Order>) => {
@@ -223,88 +194,97 @@ export default function OrdersPage() {
 
             {/* Table */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                        <thead className="bg-gray-50 text-gray-500 border-b border-gray-100">
-                            <tr>
-                                <th className="px-6 py-4 font-medium">ID Commande</th>
-                                <th className="px-6 py-4 font-medium">Client</th>
-                                <th className="px-6 py-4 font-medium">Date</th>
-                                <th className="px-6 py-4 font-medium">Statut</th>
-                                <th className="px-6 py-4 font-medium text-right">Total</th>
-                                <th className="px-6 py-4 font-medium text-center">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                            <AnimatePresence>
-                                {filteredOrders.map((order) => (
-                                    <motion.tr
-                                        key={order.id}
-                                        layout
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        exit={{ opacity: 0 }}
-                                        whileHover={{ backgroundColor: "rgba(59, 130, 246, 0.05)" }} // Light blue hover
-                                        drag="x"
-                                        dragConstraints={{ left: 0, right: 0 }}
-                                        onDragEnd={(event, info) => {
-                                            if (info.offset.x < -100) {
-                                                handleRowClick(order); // Swipe Left -> Edit
-                                            } else if (info.offset.x > 100) {
-                                                handleDuplicate(order); // Swipe Right -> Duplicate
-                                            }
-                                        }}
-                                        className="group transition-colors cursor-pointer relative"
-                                        onClick={() => handleRowClick(order)}
-                                    >
-                                        <td className="px-6 py-4 font-bold text-[var(--cookie-brown)]">
-                                            {order.id}
-                                        </td>
-                                        <td className="px-6 py-4 font-medium">
-                                            <div className="flex items-center gap-2">
-                                                <div className="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">
-                                                    {order.customer?.name.substring(0, 2).toUpperCase()}
+                <div className="overflow-x-auto min-h-[200px] relative">
+                    {loading ? (
+                        <div className="absolute inset-0 flex items-center justify-center bg-white/50 z-10">
+                            <Loader2 className="h-8 w-8 animate-spin text-[var(--cookie-brown)]" />
+                        </div>
+                    ) : (
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-gray-50 text-gray-500 border-b border-gray-100">
+                                <tr>
+                                    <th className="px-6 py-4 font-medium">ID Commande</th>
+                                    <th className="px-6 py-4 font-medium">Client</th>
+                                    <th className="px-6 py-4 font-medium">Date</th>
+                                    <th className="px-6 py-4 font-medium">Statut</th>
+                                    <th className="px-6 py-4 font-medium text-right">Total</th>
+                                    <th className="px-6 py-4 font-medium text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                <AnimatePresence>
+                                    {filteredOrders.map((order) => (
+                                        <motion.tr
+                                            key={order.id}
+                                            layout
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            exit={{ opacity: 0 }}
+                                            whileHover={{ backgroundColor: "rgba(59, 130, 246, 0.05)" }} // Light blue hover
+                                            drag="x"
+                                            dragConstraints={{ left: 0, right: 0 }}
+                                            onDragEnd={(event, info) => {
+                                                if (info.offset.x < -100) {
+                                                    handleRowClick(order); // Swipe Left -> Edit
+                                                } else if (info.offset.x > 100) {
+                                                    handleDuplicate(order); // Swipe Right -> Duplicate
+                                                }
+                                            }}
+                                            className="group transition-colors cursor-pointer relative"
+                                            onClick={() => handleRowClick(order)}
+                                        >
+                                            <td className="px-6 py-4 font-bold text-[var(--cookie-brown)]">
+                                                {order.id}
+                                            </td>
+                                            <td className="px-6 py-4 font-medium">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">
+                                                        {(order.customer as any)?.name?.substring(0, 2).toUpperCase() || "??"}
+                                                    </div>
+                                                    {(order.customer as any)?.name}
                                                 </div>
-                                                {order.customer?.name}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-gray-500">{order.created_at}</td>
-                                        <td className="px-6 py-4">
-                                            <StatusBadge status={order.status!} />
-                                        </td>
-                                        <td className="px-6 py-4 text-right font-bold text-gray-900">
-                                            {formatPrice(order.total_amount)}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); handleRowClick(order); }}
-                                                    className="p-1.5 hover:bg-gray-100 rounded text-gray-500 hover:text-green-600"
-                                                    title="Modifier"
-                                                >
-                                                    <Pencil className="h-4 w-4" />
-                                                </button>
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); /* PDF Logic */ }}
-                                                    className="p-1.5 hover:bg-gray-100 rounded text-gray-500 hover:text-blue-600"
-                                                    title="Facture PDF"
-                                                >
-                                                    <FileText className="h-4 w-4" />
-                                                </button>
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); handleDuplicate(order); }}
-                                                    className="p-1.5 hover:bg-gray-100 rounded text-gray-500 hover:text-[var(--cookie-accent)]"
-                                                    title="Dupliquer"
-                                                >
-                                                    <Copy className="h-4 w-4" />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </motion.tr>
-                                ))}
-                            </AnimatePresence>
-                        </tbody>
-                    </table>
+                                            </td>
+                                            <td className="px-6 py-4 text-gray-500">
+                                                {order.created_at ? new Date(order.created_at).toLocaleDateString('fr-FR') : '-'}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <StatusBadge status={order.status!} />
+                                            </td>
+                                            <td className="px-6 py-4 text-right font-bold text-gray-900">
+                                                {formatPrice(order.total_amount || 0)}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleRowClick(order); }}
+                                                        className="p-1.5 hover:bg-gray-100 rounded text-gray-500 hover:text-green-600"
+                                                        title="Modifier"
+                                                    >
+                                                        <Pencil className="h-4 w-4" />
+                                                    </button>
+                                                    <Link
+                                                        href={`/commandes/${order.id}`}
+                                                        onClick={(e) => { e.stopPropagation(); }}
+                                                        className="p-1.5 hover:bg-gray-100 rounded text-gray-500 hover:text-blue-600"
+                                                        title="Facture PDF"
+                                                    >
+                                                        <FileText className="h-4 w-4" />
+                                                    </Link>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleDuplicate(order); }}
+                                                        className="p-1.5 hover:bg-gray-100 rounded text-gray-500 hover:text-[var(--cookie-accent)]"
+                                                        title="Dupliquer"
+                                                    >
+                                                        <Copy className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </motion.tr>
+                                    ))}
+                                </AnimatePresence>
+                            </tbody>
+                        </table>
+                    )}
 
                     {filteredOrders.length === 0 && (
                         <div className="p-8 text-center text-gray-500">

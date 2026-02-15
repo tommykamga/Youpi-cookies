@@ -5,18 +5,24 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Save, Plus, Trash2 } from "lucide-react";
 import { formatPrice } from "@/config/currency";
+import { createClient } from "@/lib/supabase";
+import { Product } from "@/types";
 
-// Mock Products
-const mockProducts = [
-    { id: "1", name: "Gaufres fines rhum (110g)", price: 1500 },
-    { id: "2", name: "Gaufres fines chocolats (110g)", price: 1800 },
-    { id: "3", name: "Gaufres fines rhum (220g)", price: 2800 },
-    { id: "4", name: "Gaufres fines chocolats (220g)", price: 3200 },
-];
+// Removed mockProducts
 
 export default function NewOrderPage() {
+    const supabase = createClient();
+    const [products, setProducts] = useState<Product[]>([]);
     const [items, setItems] = useState<{ productId: string; quantity: number }[]>([]);
     const [selectedProduct, setSelectedProduct] = useState("");
+
+    useState(() => {
+        const fetchProducts = async () => {
+            const { data } = await supabase.from('products').select('*').order('name');
+            if (data) setProducts(data);
+        };
+        fetchProducts();
+    });
 
     const addItem = () => {
         if (!selectedProduct) return;
@@ -40,7 +46,7 @@ export default function NewOrderPage() {
 
     const calculateTotal = () => {
         return items.reduce((acc, item) => {
-            const product = mockProducts.find(p => p.id === item.productId);
+            const product = products.find(p => p.id === item.productId);
             return acc + (product ? product.price * item.quantity : 0);
         }, 0);
     };
@@ -97,7 +103,7 @@ export default function NewOrderPage() {
                                 onChange={(e) => setSelectedProduct(e.target.value)}
                             >
                                 <option value="">Ajouter un produit...</option>
-                                {mockProducts.map(p => (
+                                {products.map(p => (
                                     <option key={p.id} value={p.id}>{p.name} - {formatPrice(p.price)}</option>
                                 ))}
                             </select>
@@ -112,7 +118,7 @@ export default function NewOrderPage() {
                         {items.length > 0 ? (
                             <div className="space-y-2">
                                 {items.map(item => {
-                                    const product = mockProducts.find(p => p.id === item.productId);
+                                    const product = products.find(p => p.id === item.productId);
                                     return (
                                         <div key={item.productId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                                             <div className="flex-1">

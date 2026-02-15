@@ -7,36 +7,6 @@ import StatusBadge from "@/components/ui/StatusBadge";
 import { Order } from "@/types";
 import { createClient } from "@/lib/supabase";
 
-// Mock Invoices Data (Fallback)
-const mockInvoices: Order[] = [
-    {
-        id: "INV-2023-001",
-        created_at: "2023-10-25T10:00:00Z",
-        customer_id: "CLI-001",
-        customer: { id: "CLI-001", name: "Alice Dupont", balance: 0, status: "active" },
-        status: "paid",
-        total_amount: 15400,
-        items: []
-    },
-    {
-        id: "INV-2023-002",
-        created_at: "2023-10-24T14:30:00Z",
-        customer_id: "CLI-002",
-        customer: { id: "CLI-002", name: "Boulangerie Paul", balance: 0, status: "active" },
-        status: "invoiced",
-        total_amount: 85000,
-        items: []
-    },
-    {
-        id: "INV-2023-003",
-        created_at: "2023-10-23T09:15:00Z",
-        customer_id: "CLI-004",
-        customer: { id: "CLI-004", name: "Café de la Gare", balance: 0, status: "active" },
-        status: "delivered",
-        total_amount: 4200,
-        items: []
-    }
-];
 
 export default function InvoicesPage() {
     const [searchTerm, setSearchTerm] = useState("");
@@ -55,15 +25,11 @@ export default function InvoicesPage() {
                     .in('status', ['delivered', 'invoiced', 'paid', 'advance'])
                     .order('created_at', { ascending: false });
 
-                if (error || !data || data.length === 0) {
-                    console.warn("Error fetching invoices or no data, using mock data:", error);
-                    setInvoices(mockInvoices);
-                } else {
-                    setInvoices(data);
-                }
+                if (error) throw error;
+                setInvoices(data || []);
             } catch (err) {
-                console.warn("Using mock data for Invoices (DB fetch failed or empty).");
-                setInvoices(mockInvoices);
+                console.error("Error fetching invoices:", err);
+                setInvoices([]);
             } finally {
                 setLoading(false);
             }

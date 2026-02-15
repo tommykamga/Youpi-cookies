@@ -8,29 +8,6 @@ import { createClient } from "@/lib/supabase";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { formatPrice } from "@/config/currency";
 
-// Mock Data for fallback
-const mockOrder: Order = {
-    id: "INV-2023-001",
-    created_at: "2023-10-25T10:00:00Z",
-    customer_id: "CLI-001",
-    customer: {
-        id: "CLI-001",
-        name: "Alice Dupont",
-        company_name: "Alice Délice SARL",
-        niu: "M123456789",
-        rc: "RC/DLA/2020/B/123",
-        address: "123 Rue de la Paix, 75000 Paris",
-        balance: 0,
-        status: "active"
-    },
-    status: "paid",
-    total_amount: 15400,
-    items: [
-        { id: "1", order_id: "INV-2023-001", product_id: "1", quantity: 5, unit_price: 1500, product: { id: "1", name: "Gaufres fines rhum (110g)", price: 1500, stock: 150, alert_threshold: 20, unit: "110g" } },
-        { id: "2", order_id: "INV-2023-001", product_id: "2", quantity: 2, unit_price: 1800, product: { id: "2", name: "Gaufres fines chocolats (110g)", price: 1800, stock: 85, alert_threshold: 20, unit: "110g" } },
-        { id: "3", order_id: "INV-2023-001", product_id: "3", quantity: 10, unit_price: 430, product: { id: "3", name: "Madeleines natures", price: 430, stock: 85, alert_threshold: 20, unit: "pcs" } },
-    ]
-};
 
 export default function InvoiceDetailsPage({ params }: { params: Promise<{ id: string }> }) {
     const resolvedParams = use(params);
@@ -42,36 +19,17 @@ export default function InvoiceDetailsPage({ params }: { params: Promise<{ id: s
         const fetchOrder = async () => {
             try {
                 // Fetch order with customer and Items
-                // Note: chained selects in supabase-js can be tricky with deep joins for items->product
-                // Simulating fetch for now or using robust fallback
-
-                // TODO: Implement real fetch with:
-                // .from('orders').select('*, customer:customers(*), items:order_items(*, product:products(*))').eq('id', resolvedParams.id).single()
-
-                // For now, let's try a basic fetch and fallback to mock if not found (dev environment)
                 const { data, error } = await supabase
                     .from('orders')
-                    .select('*, customer:customers(*)') // simplified fetch first
+                    .select('*, customer:customers(*), items:order_items(*, product:products(*))')
                     .eq('id', resolvedParams.id)
                     .single();
 
-                if (error || !data) {
-                    console.warn("Invoice not found in DB, using mock data.");
-                    // Check if mock data matches ID, else just use the generic mock
-                    if (resolvedParams.id === mockOrder.id) {
-                        setOrder(mockOrder);
-                    } else {
-                        // Create a variation of mock order for other IDs
-                        setOrder({ ...mockOrder, id: resolvedParams.id });
-                    }
-                } else {
-                    // We need items too. If real DB connected, we'd fetch items here.
-                    // For safety in this demo state:
-                    setOrder({ ...mockOrder, id: resolvedParams.id, ...data });
-                }
+                if (error) throw error;
+                setOrder(data);
             } catch (err) {
-                console.warn("Error fetching invoice details, using mock:", err);
-                setOrder(mockOrder);
+                console.error("Error fetching order details:", err);
+                setOrder(null);
             } finally {
                 setLoading(false);
             }

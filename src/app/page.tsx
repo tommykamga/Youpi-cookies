@@ -1,16 +1,111 @@
+"use client";
 
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase";
 import StatCard from "@/components/dashboard/StatCard";
 import RecentOrders from "@/components/dashboard/RecentOrders";
 import SalesChart from "@/components/dashboard/SalesChart";
-import { Banknote, ShoppingBag, AlertTriangle, CheckCircle } from "lucide-react";
+import { Banknote, ShoppingBag, AlertTriangle, CheckCircle, Loader2 } from "lucide-react";
+import { formatPrice } from "@/config/currency";
+import { Order, Product, Task } from "@/types";
 
 export default function Home() {
+  const supabase = createClient();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    revenue: 0,
+    ordersCount: 0,
+    stockAlertsCount: 0,
+    urgentTasksCount: 0
+  });
+  const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [stockAlerts, setStockAlerts] = useState<any[]>([]);
+  const [chartData, setChartData] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      setLoading(true);
+      
+      // 1. Revenue (This Month)
+      const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+      const { data: revenueData } = await supabase
+        .from('orders')
+        .select('total_amount')
+        .gte('created_at', firstDayOfMonth);
+      const totalRevenue = revenueData?.reduce((sum, o) => sum + (o.total_amount || 0), 0) || 0;
+
+      // 2. Active Orders
+      const { count: ordersCount } = await supabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+        .in('status', ['new', 'preparing', 'ready']);
+
+      // 3. Stock Alerts
+      const { data: products } = await supabase.from('products').select('*');
+      const alerts = products?.filter(p => p.stock <= (p.alert_threshold || 10)) || [];
+      
+      // 4. Urgent Tasks
+      const { count: tasksCount } = await supabase
+        .from('tasks')
+        .select('*', { count: 'exact', head: true })
+        .eq('priority', 'high')
+        .neq('status', 'done');
+
+      // 5. Recent Orders
+      const { data: latestOrders } = await supabase
+        .from('orders')
+        .select('*, customers(name)')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      // 6. Chart Data (Last 7 Days)
+      const last7Days = new Date();
+      last7Days.setDate(last7Days.getDate() - 7);
+      const { data: salesData } = await supabase
+        .from('orders')
+        .select('total_amount, created_at')
+        .gte('created_at', last7Days.toISOString());
+
+      const days = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+      const groupedData = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (6 - i));
+        const dayName = days[d.getDay()];
+        const total = salesData
+          ?.filter(s => new Date(s.created_at).toDateString() === d.toDateString())
+          .reduce((sum, s) => sum + (s.total_amount || 0), 0) || 0;
+        return { name: dayName, uv: total };
+      });
+
+      setStats({
+        revenue: totalRevenue,
+        ordersCount: ordersCount || 0,
+        stockAlertsCount: alerts.length,
+        urgentTasksCount: tasksCount || 0
+      });
+      setRecentOrders(latestOrders || []);
+      setStockAlerts(alerts.slice(0, 3));
+      setChartData(groupedData);
+      setLoading(false);
+    };
+
+    fetchDashboardData();
+  }, [supabase]);
+
+  if (loading) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--cookie-brown)]" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-[var(--cookie-brown)]">Tableau de bord</h1>
         <div className="text-sm text-gray-500">
-          Dernière mise à jour: Aujourd'hui, 10:45
+          Dernière mise à jour: {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
         </div>
       </div>
 
@@ -18,27 +113,25 @@ export default function Home() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Chiffre d'Affaires (Mois)"
-          value="1,250,500 FCFA"
+          value={formatPrice(stats.revenue)}
           icon={Banknote}
-          trend="+12%"
-          trendUp={true}
           color="text-green-600"
         />
         <StatCard
           title="Commandes en cours"
-          value="12"
+          value={stats.ordersCount}
           icon={ShoppingBag}
           color="text-blue-600"
         />
         <StatCard
           title="Stock Critique"
-          value="3 produits"
+          value={`${stats.stockAlertsCount} produits`}
           icon={AlertTriangle}
           color="text-red-500"
         />
         <StatCard
           title="Tâches Urgentes"
-          value="5"
+          value={stats.urgentTasksCount}
           icon={CheckCircle}
           color="text-orange-500"
         />
@@ -47,7 +140,7 @@ export default function Home() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Chart Section */}
         <div className="lg:col-span-2">
-          <SalesChart />
+          <SalesChart data={chartData} />
         </div>
 
         {/* Stock Alert or Quick Tasks */}
@@ -57,16 +150,15 @@ export default function Home() {
             Alertes Stock
           </h3>
           <ul className="space-y-3">
-            {[
-              { name: "Farine de Blé", stock: "2 kg", min: "50 kg" },
-              { name: "Pépites Chocolat", stock: "500 g", min: "5 kg" },
-              { name: "Beurre Doux", stock: "1 kg", min: "10 kg" },
-            ].map((item, i) => (
+            {stockAlerts.map((item, i) => (
               <li key={i} className="flex items-center justify-between text-sm p-2 bg-red-50 rounded-lg text-red-700">
                 <span>{item.name}</span>
-                <span className="font-bold">{item.stock}</span>
+                <span className="font-bold">{item.stock} {item.unit || 'unités'}</span>
               </li>
             ))}
+            {stockAlerts.length === 0 && (
+              <li className="text-sm text-gray-500 italic p-2 text-center">Aucune alerte stock</li>
+            )}
           </ul>
           <button className="text-sm text-red-600 font-medium mt-4 hover:underline">
             Commander du stock &rarr;
@@ -75,7 +167,7 @@ export default function Home() {
       </div>
 
       {/* Recent Orders */}
-      <RecentOrders />
+      <RecentOrders orders={recentOrders} />
     </div>
   );
 }

@@ -1,27 +1,36 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Plus, Search, Filter, Download, User, MoreHorizontal, AlertTriangle, Eye, EyeOff, CheckCircle, XCircle } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Plus, Search, Filter, Download, User, MoreHorizontal, AlertTriangle, Eye, EyeOff, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { Employee, EmployeeRole } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
 import EmployeeEditModal from "@/components/rh/EmployeeEditModal";
 import { formatPrice } from "@/config/currency";
+import { createClient } from "@/lib/supabase";
 
-// Mock Data
-const initialEmployees: Partial<Employee>[] = [
-    { id: "1", fullName: "Marie Dupont", role: "GERANT", hireDate: "2025-01-15", salary: 3200, lastPaymentDate: "2026-02-01", active: true, phone: "06 12 34 56 78" },
-    { id: "2", fullName: "Ahmed Kone", role: "Cuisson", hireDate: "2025-06-01", salary: 1800, lastPaymentDate: "2026-01-28", active: true, phone: "07 98 76 54 32" },
-    { id: "3", fullName: "Sophie Lefèvre", role: "Découpe pâte", hireDate: "2025-03-10", exitDate: "2026-01-31", salary: 1650, active: false, phone: "06 00 00 00 00" },
-    { id: "4", fullName: "Thomas Durand", role: "Vendeur", hireDate: "2024-11-20", salary: 1700, lastPaymentDate: "2025-12-28", active: true, phone: "06 11 22 33 44" } // Payment Late!
-];
+// Removed mock data
 
 export default function EmployeesPage() {
-    const [employees, setEmployees] = useState(initialEmployees);
+    const supabase = createClient();
+    const [employees, setEmployees] = useState<Partial<Employee>[]>([]);
+    const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState<Partial<Employee> | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [roleFilter, setRoleFilter] = useState("all");
-    const [salaryVisible, setSalaryVisible] = useState(false); // Permission override for demo
+    const [salaryVisible, setSalaryVisible] = useState(false);
+
+    // Fetch Employees
+    const fetchEmployees = async () => {
+        setLoading(true);
+        const { data } = await supabase.from('employees').select('*').order('fullName');
+        if (data) setEmployees(data);
+        setLoading(false);
+    };
+
+    useEffect(() => {
+        fetchEmployees();
+    }, []);
 
     // Filter Logic
     const filteredEmployees = useMemo(() => {
@@ -58,17 +67,25 @@ export default function EmployeesPage() {
         setIsModalOpen(true);
     };
 
-    const handleSave = (updated: Partial<Employee>) => {
+    const handleSave = async (updated: Partial<Employee>) => {
         if (!updated.id) {
-            updated.id = Math.random().toString(36).substr(2, 9);
-            setEmployees([updated, ...employees]);
+            const { data } = await supabase.from('employees').insert([updated]).select();
+            if (data) setEmployees([data[0], ...employees]);
         } else {
-            setEmployees(prev => prev.map(e => e.id === updated.id ? updated : e));
+            const { error } = await supabase.from('employees').update(updated).eq('id', updated.id);
+            if (!error) {
+                setEmployees(prev => prev.map(e => e.id === updated.id ? { ...e, ...updated } : e));
+            }
         }
+        setIsModalOpen(false);
     };
 
-    const handleArchive = (id: string) => {
-        setEmployees(prev => prev.map(e => e.id === id ? { ...e, active: false, exitDate: new Date().toISOString().split('T')[0] } : e));
+    const handleArchive = async (id: string) => {
+        const exitDate = new Date().toISOString().split('T')[0];
+        const { error } = await supabase.from('employees').update({ active: false, exitDate }).eq('id', id);
+        if (!error) {
+            setEmployees(prev => prev.map(e => e.id === id ? { ...e, active: false, exitDate } : e));
+        }
         setIsModalOpen(false);
     };
 

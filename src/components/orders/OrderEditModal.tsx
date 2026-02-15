@@ -1,9 +1,10 @@
 "use client";
 
+import { X, Save, Plus, Trash2, FileText } from "lucide-react";
 import { useState, useEffect } from "react";
-import { X, Save, Plus, Trash2, Printer, FileText } from "lucide-react";
-import { Order } from "@/types";
+import { Order, Product } from "@/types";
 import { formatPrice } from "@/config/currency";
+import { createClient } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface OrderEditModalProps {
@@ -13,19 +14,26 @@ interface OrderEditModalProps {
     onSave: (updatedOrder: Partial<Order>) => void;
 }
 
-// Mock Products for the dropdown (in a real app, pass this as prop or fetch)
-const mockProducts = [
-    { id: "1", name: "Gaufres fines rhum (110g)", price: 1500 },
-    { id: "2", name: "Gaufres fines chocolats (110g)", price: 1800 },
-    { id: "3", name: "Gaufres fines rhum (220g)", price: 2800 },
-    { id: "4", name: "Gaufres fines chocolats (220g)", price: 3200 },
-    { id: "5", name: "Madeleines natures", price: 430 },
-];
+// Removed mockProducts array
+
+// Use a small helper for order item type safely
+type OrderItemInput = { productId: string; quantity: number };
 
 export default function OrderEditModal({ isOpen, onClose, order, onSave }: OrderEditModalProps) {
+    const supabase = createClient();
     const [formData, setFormData] = useState<Partial<Order>>({});
-    const [items, setItems] = useState<{ productId: string; quantity: number }[]>([]);
+    const [items, setItems] = useState<OrderItemInput[]>([]);
+    const [products, setProducts] = useState<Product[]>([]);
     const [selectedProduct, setSelectedProduct] = useState("");
+
+    // Fetch Products for the dropdown
+    useEffect(() => {
+        const fetchProducts = async () => {
+            const { data } = await supabase.from('products').select('*').order('name');
+            if (data) setProducts(data);
+        };
+        if (isOpen) fetchProducts();
+    }, [isOpen, supabase]);
 
     // Initialize form when order changes
     useEffect(() => {
@@ -69,7 +77,7 @@ export default function OrderEditModal({ isOpen, onClose, order, onSave }: Order
 
     const calculateTotal = () => {
         return items.reduce((acc, item) => {
-            const product = mockProducts.find(p => p.id === item.productId);
+            const product = products.find(p => p.id === item.productId);
             return acc + (product ? product.price * item.quantity : 0);
         }, 0);
     };
@@ -80,14 +88,14 @@ export default function OrderEditModal({ isOpen, onClose, order, onSave }: Order
             ...formData,
             total_amount: calculateTotal(),
             items: items.map(i => {
-                const p = mockProducts.find(prod => prod.id === i.productId);
+                const p = products.find(prod => prod.id === i.productId);
                 return {
-                    id: Math.random().toString(36).substr(2, 9), // fake id
+                    id: Math.random().toString(36).substr(2, 9), // temp id, should be handled by DB
                     order_id: formData.id || "",
                     product_id: i.productId,
                     quantity: i.quantity,
                     unit_price: p?.price || 0,
-                    product: p as any // simplified type casting
+                    product: p as any
                 };
             })
         };
@@ -197,7 +205,7 @@ export default function OrderEditModal({ isOpen, onClose, order, onSave }: Order
                                             onChange={(e) => setSelectedProduct(e.target.value)}
                                         >
                                             <option value="">Ajouter un produit...</option>
-                                            {mockProducts.map(p => (
+                                            {products.map(p => (
                                                 <option key={p.id} value={p.id}>{p.name} - {formatPrice(p.price)}</option>
                                             ))}
                                         </select>
@@ -215,7 +223,7 @@ export default function OrderEditModal({ isOpen, onClose, order, onSave }: Order
                                         <div className="text-center py-8 text-gray-400 text-sm">Aucun produit dans cette commande.</div>
                                     )}
                                     {items.map(item => {
-                                        const product = mockProducts.find(p => p.id === item.productId);
+                                        const product = products.find(p => p.id === item.productId);
                                         return (
                                             <div key={item.productId} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg shadow-sm">
                                                 <div className="flex-1">

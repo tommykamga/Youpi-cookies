@@ -6,14 +6,7 @@ import { Product } from "@/types";
 import { createClient } from "@/lib/supabase";
 import Link from "next/link";
 
-// Mock Data (Fallback)
-const mockProducts: Product[] = [
-    { id: "1", name: "Gaufres fines rhum (110g)", price: 1500, stock: 150, alert_threshold: 20, unit: "110g" },
-    { id: "2", name: "Gaufres fines chocolats (110g)", price: 1800, stock: 85, alert_threshold: 20, unit: "110g" },
-    { id: "3", name: "Gaufres fines rhum (220g)", price: 2800, stock: 12, alert_threshold: 15, unit: "220g" },
-    { id: "4", name: "Gaufres fines chocolats (220g)", price: 3200, stock: 200, alert_threshold: 15, unit: "220g" },
-    { id: "5", name: "Gaufres vanille (110g)", price: 1400, stock: 0, alert_threshold: 20, unit: "110g" },
-];
+// Removed mockProducts
 
 export default function StocksPage() {
     const [searchTerm, setSearchTerm] = useState("");
@@ -47,12 +40,11 @@ export default function StocksPage() {
                 if (data && data.length > 0) {
                     setProducts(data);
                 } else {
-                    console.log("No products found in DB (or tables missing), using mock data.");
-                    setProducts(mockProducts);
+                    setProducts([]);
                 }
             } catch (err) {
-                console.warn("Using mock data for Stocks (DB fetch failed or empty).");
-                setProducts(mockProducts);
+                console.error("Error fetching stocks:", err);
+                setProducts([]);
             } finally {
                 setLoading(false);
             }

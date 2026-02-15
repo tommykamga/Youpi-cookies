@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { X, Save, Calendar, User, Flag, CheckCircle, AlertCircle, Clock } from "lucide-react";
-import { Task } from "@/types";
+import { Task, User as AppUser, Role } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
+import { createClient } from "@/lib/supabase";
 
 interface TaskEditModalProps {
     isOpen: boolean;
@@ -14,16 +15,20 @@ interface TaskEditModalProps {
     onDuplicate?: (task: Partial<Task>) => void;
 }
 
-// Mock Users
-const mockUsers = [
-    { id: "u1", name: "Toi (Admin)" },
-    { id: "u2", name: "Préparateur" },
-    { id: "u3", name: "Vendeur" },
-    { id: "u4", name: "Gérant" },
-];
+// Removed mockUsers
 
 export default function TaskEditModal({ isOpen, onClose, task, onSave, onDelete, onDuplicate }: TaskEditModalProps) {
+    const supabase = createClient();
     const [formData, setFormData] = useState<Partial<Task>>({});
+    const [profiles, setProfiles] = useState<{ id: string, fullName: string }[]>([]);
+
+    useEffect(() => {
+        const fetchProfiles = async () => {
+            const { data } = await supabase.from('profiles').select('id, fullName').order('fullName');
+            if (data) setProfiles(data);
+        };
+        if (isOpen) fetchProfiles();
+    }, [isOpen, supabase]);
 
     useEffect(() => {
         if (task) {
@@ -32,8 +37,7 @@ export default function TaskEditModal({ isOpen, onClose, task, onSave, onDelete,
             // Default for new task
             setFormData({
                 priority: 'medium',
-                status: 'todo',
-                assigned_to: 'u1'
+                status: 'todo'
             });
         }
     }, [task, isOpen]);
@@ -105,8 +109,9 @@ export default function TaskEditModal({ isOpen, onClose, task, onSave, onDelete,
                                         onChange={(e) => handleChange("assigned_to", e.target.value)}
                                         className="w-full p-2 border border-gray-200 rounded-lg"
                                     >
-                                        {mockUsers.map(u => (
-                                            <option key={u.id} value={u.name}>{u.name}</option>
+                                        <option value="">Non assigné</option>
+                                        {profiles.map(p => (
+                                            <option key={p.id} value={p.id}>{p.fullName}</option>
                                         ))}
                                     </select>
                                 </div>

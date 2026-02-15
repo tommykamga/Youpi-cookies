@@ -1,68 +1,53 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Plus, Search, Filter, MoreHorizontal, FileText, Phone, Mail, Globe, MapPin, Building, User } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Plus, Search, Filter, MoreHorizontal, FileText, Phone, Mail, Globe, MapPin, Building, User, Loader2 } from "lucide-react";
+import { createClient } from "@/lib/supabase";
 import { Contact, ContactCategory } from "@/types";
 import ContactEditModal from "@/components/contacts/ContactEditModal";
 import { motion, AnimatePresence } from "framer-motion";
 
-// Mock Data
-const initialContacts: Contact[] = [
-    {
-        id: "1",
-        company: "Boulangerie Paul",
-        contactName: "Jean Paul",
-        email: "jean@paul.com",
-        niu: "M051500000000N",
-        rc: "RC/DLA/2020/A/1234",
-        mobile: "699000000",
-        officePhone: "233000000",
-        address: "Akwa, Douala",
-        website: "https://boulangerie-paul.com",
-        category: "CLIENT",
-        createdAt: "2023-01-01",
-        updatedAt: "2023-01-01"
-    },
-    {
-        id: "2",
-        company: "Farine & Co",
-        contactName: "Marc Dumont",
-        email: "marc@farine.co",
-        niu: "P123456789",
-        rc: "RC/YDE/2019/B/5678",
-        mobile: "677112233",
-        officePhone: "",
-        address: "Zone Industrielle, Yaoundé",
-        website: "",
-        category: "FOURNISSEUR",
-        createdAt: "2023-02-15",
-        updatedAt: "2023-02-15"
-    },
-    {
-        id: "3",
-        company: "Hôtel Sawa",
-        contactName: "Directeur Achat",
-        email: "achat@hotelsawa.com",
-        niu: "",
-        rc: "",
-        mobile: "699887766",
-        officePhone: "233445566",
-        address: "Bonanjo, Douala",
-        website: "https://hotelsawa.com",
-        category: "PROSPECT",
-        createdAt: "2023-10-10",
-        updatedAt: "2023-10-10"
-    }
-];
+// Removed mock data
 
 export default function ContactsPage() {
-    const [contacts, setContacts] = useState<Contact[]>(initialContacts);
+    const supabase = createClient();
+    const [contacts, setContacts] = useState<Contact[]>([]);
+    const [loading, setLoading] = useState(true);
     const [selectedContact, setSelectedContact] = useState<Partial<Contact> | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<ContactCategory | 'ALL'>('ALL');
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 20;
+
+    const fetchContacts = async () => {
+        setLoading(true);
+        const { data } = await supabase.from('customers').select('*').order('company_name');
+        if (data) {
+            // Map DB fields to UI fields
+            const mapped: Contact[] = data.map(c => ({
+                id: c.id,
+                company: c.company_name || c.name || "Inconnu",
+                contactName: c.name || "",
+                email: c.email || "",
+                niu: c.niu || "",
+                rc: c.rc || "",
+                mobile: c.phone || "",
+                officePhone: "", // Not in DB yet
+                address: c.address || "",
+                website: c.website || "",
+                category: (c.category as ContactCategory) || 'CLIENT',
+                createdAt: c.created_at,
+                updatedAt: c.updated_at
+            }));
+            setContacts(mapped);
+        }
+        setLoading(false);
+    };
+
+    useEffect(() => {
+        fetchContacts();
+    }, []);
 
     const filteredContacts = useMemo(() => {
         return contacts.filter(contact => {
@@ -87,25 +72,35 @@ export default function ContactsPage() {
         setCurrentPage(1);
     }, [activeTab, searchTerm]);
 
-    const handleSave = (contact: Partial<Contact>) => {
+    const handleSave = async (contact: Partial<Contact>) => {
+        const dbPayload = {
+            name: contact.contactName,
+            company_name: contact.company,
+            email: contact.email,
+            phone: contact.mobile,
+            address: contact.address,
+            niu: contact.niu,
+            rc: contact.rc,
+            website: contact.website,
+            category: contact.category
+        };
+
         if (contact.id) {
             // Update
-            setContacts(prev => prev.map(c => c.id === contact.id ? { ...c, ...contact } as Contact : c));
+            const { error } = await supabase.from('customers').update(dbPayload).eq('id', contact.id);
+            if (!error) fetchContacts();
         } else {
             // Create
-            const newContact = {
-                ...contact,
-                id: Math.random().toString(36).substr(2, 9),
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-            } as Contact;
-            setContacts(prev => [...prev, newContact]);
+            const { error } = await supabase.from('customers').insert([dbPayload]);
+            if (!error) fetchContacts();
         }
+        setIsModalOpen(false);
     };
 
-    const handleDelete = (id: string) => {
+    const handleDelete = async (id: string) => {
         if (confirm("Êtes-vous sûr de vouloir supprimer ce contact ?")) {
-            setContacts(prev => prev.filter(c => c.id !== id));
+            const { error } = await supabase.from('customers').delete().eq('id', id);
+            if (!error) setContacts(prev => prev.filter(c => c.id !== id));
         }
     };
 
@@ -119,7 +114,10 @@ export default function ContactsPage() {
             />
 
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h1 className="text-2xl font-bold text-[var(--cookie-brown)]">Annuaire Contacts</h1>
+                <h1 className="text-2xl font-bold text-[var(--cookie-brown)] flex items-center gap-3">
+                    Annuaire Contacts
+                    {loading && <Loader2 className="h-5 w-5 animate-spin text-gray-400" />}
+                </h1>
                 <button
                     onClick={() => { setSelectedContact(null); setIsModalOpen(true); }}
                     className="btn-primary flex items-center gap-2 shadow-md hover:shadow-lg transform transition-transform hover:-translate-y-0.5"

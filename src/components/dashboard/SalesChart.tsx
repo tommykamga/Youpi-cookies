@@ -3,17 +3,7 @@
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-const data = [
-    { name: 'Lun', uv: 40000 },
-    { name: 'Mar', uv: 30000 },
-    { name: 'Mer', uv: 20000 },
-    { name: 'Jeu', uv: 27800 },
-    { name: 'Ven', uv: 18900 },
-    { name: 'Sam', uv: 23900 },
-    { name: 'Dim', uv: 34900 },
-];
-
-export default function SalesChart() {
+export default function SalesChart({ data }: { data: any[] }) {
     return (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-[300px]">
             <h3 className="font-bold text-gray-800 mb-6">Ventes de la semaine (FCFA)</h3>
