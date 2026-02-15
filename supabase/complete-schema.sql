@@ -162,12 +162,25 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON profiles;
 CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_products_updated_at ON products;
 CREATE TRIGGER update_products_updated_at BEFORE UPDATE ON products FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_customers_updated_at ON customers;
 CREATE TRIGGER update_customers_updated_at BEFORE UPDATE ON customers FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_orders_updated_at ON orders;
 CREATE TRIGGER update_orders_updated_at BEFORE UPDATE ON orders FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_tasks_updated_at ON tasks;
 CREATE TRIGGER update_tasks_updated_at BEFORE UPDATE ON tasks FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_employees_updated_at ON employees;
 CREATE TRIGGER update_employees_updated_at BEFORE UPDATE ON employees FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_invoices_updated_at ON invoices;
 CREATE TRIGGER update_invoices_updated_at BEFORE UPDATE ON invoices FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 
 -- ==========================================
@@ -208,82 +221,117 @@ ALTER TABLE employees ENABLE ROW LEVEL SECURITY;
 ALTER TABLE employee_payments ENABLE ROW LEVEL SECURITY;
 
 -- Base Policies (Example: All authenticated users can Read)
+DROP POLICY IF EXISTS "Profiles are viewable by everyone" ON profiles;
 CREATE POLICY "Profiles are viewable by everyone" ON profiles FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE TO authenticated USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Products are viewable by everyone" ON products;
 CREATE POLICY "Products are viewable by everyone" ON products FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Any authenticated user can insert products" ON products;
 CREATE POLICY "Any authenticated user can insert products" ON products 
   FOR INSERT TO authenticated 
   WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Admins can update products" ON products;
 CREATE POLICY "Admins can update products" ON products 
   FOR UPDATE TO authenticated 
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin')))
   WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin')));
 
+DROP POLICY IF EXISTS "Admins can delete products" ON products;
 CREATE POLICY "Admins can delete products" ON products 
   FOR DELETE TO authenticated 
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin')));
 
+DROP POLICY IF EXISTS "Customers are viewable by authenticated users" ON customers;
 CREATE POLICY "Customers are viewable by authenticated users" ON customers FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Any authenticated user can insert customers" ON customers;
 CREATE POLICY "Any authenticated user can insert customers" ON customers 
   FOR INSERT TO authenticated 
   WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Commercials and Admins can update customers" ON customers;
 CREATE POLICY "Commercials and Admins can update customers" ON customers FOR UPDATE TO authenticated 
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin', 'responsable_commerciale', 'commercial')))
   WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin', 'responsable_commerciale', 'commercial')));
 
+DROP POLICY IF EXISTS "Commercials and Admins can delete customers" ON customers;
 CREATE POLICY "Commercials and Admins can delete customers" ON customers FOR DELETE TO authenticated 
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin', 'responsable_commerciale', 'commercial')));
 
 -- Simplification radicale pour diagnostic de visibilité
 DROP POLICY IF EXISTS "Orders are viewable by authenticated users" ON orders;
 CREATE POLICY "Orders are viewable by authenticated users" ON orders FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Admins and Sales can insert orders" ON orders;
 CREATE POLICY "Admins and Sales can insert orders" ON orders 
   FOR INSERT TO authenticated 
   WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin', 'responsable_commerciale', 'commercial', 'vente', 'sales')));
 
+DROP POLICY IF EXISTS "Admins and Sales can update orders" ON orders;
 CREATE POLICY "Admins and Sales can update orders" ON orders 
   FOR UPDATE TO authenticated 
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin', 'responsable_commerciale', 'commercial', 'vente', 'sales')))
   WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin', 'responsable_commerciale', 'commercial', 'vente', 'sales')));
 
+DROP POLICY IF EXISTS "Admins and Sales can delete orders" ON orders;
 CREATE POLICY "Admins and Sales can delete orders" ON orders 
   FOR DELETE TO authenticated 
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin', 'responsable_commerciale', 'commercial', 'vente', 'sales')));
 
--- Simplification radicale pour diagnostic de visibilité
 DROP POLICY IF EXISTS "Order items are viewable by authenticated users" ON order_items;
 CREATE POLICY "Order items are viewable by authenticated users" ON order_items FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Admins and Sales can manage order items" ON order_items;
 CREATE POLICY "Admins and Sales can manage order items" ON order_items 
   FOR ALL TO authenticated 
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin', 'responsable_commerciale', 'commercial', 'vente', 'sales')))
   WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin', 'responsable_commerciale', 'commercial', 'vente', 'sales')));
 
 -- TASKS
+DROP POLICY IF EXISTS "Tasks are viewable by authenticated users" ON tasks;
 CREATE POLICY "Tasks are viewable by authenticated users" ON tasks FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Tasks can be managed by authenticated users" ON tasks;
 CREATE POLICY "Tasks can be managed by authenticated users" ON tasks FOR ALL TO authenticated USING (true);
 
 -- STOCK MOVEMENTS
+DROP POLICY IF EXISTS "Stock movements are viewable by authenticated users" ON stock_movements;
 CREATE POLICY "Stock movements are viewable by authenticated users" ON stock_movements FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Stock movements can be managed by authorized roles" ON stock_movements;
 CREATE POLICY "Stock movements can be managed by authorized roles" ON stock_movements FOR ALL TO authenticated 
-  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT', 'PRODUCTION', 'VENTE')));
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin', 'production', 'vente', 'sales')));
 
 -- RH (Restricted)
+DROP POLICY IF EXISTS "Employees are viewable by authorized roles" ON employees;
 CREATE POLICY "Employees are viewable by authorized roles" ON employees FOR SELECT TO authenticated 
-  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT')));
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin')));
+
+DROP POLICY IF EXISTS "Employees can be managed by authorized roles" ON employees;
 CREATE POLICY "Employees can be managed by authorized roles" ON employees FOR ALL TO authenticated 
-  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT')));
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin')));
 
 -- PAYMENTS
+DROP POLICY IF EXISTS "Payments are viewable by authorized roles" ON employee_payments;
 CREATE POLICY "Payments are viewable by authorized roles" ON employee_payments FOR SELECT TO authenticated 
-  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT')));
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin')));
+
+DROP POLICY IF EXISTS "Payments can be managed by authorized roles" ON employee_payments;
 CREATE POLICY "Payments can be managed by authorized roles" ON employee_payments FOR ALL TO authenticated 
-  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT')));
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND LOWER(role) IN ('super_admin', 'gerant', 'admin')));
 
 -- STORAGE (product-images bucket)
 -- Note: These policies apply to the storage.objects table
+DROP POLICY IF EXISTS "Public Read Access" ON storage.objects;
 CREATE POLICY "Public Read Access" ON storage.objects FOR SELECT USING (bucket_id = 'product-images');
+
+DROP POLICY IF EXISTS "Authenticated Upload Access" ON storage.objects;
 CREATE POLICY "Authenticated Upload Access" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'product-images');
+
+DROP POLICY IF EXISTS "Authenticated Manage Access" ON storage.objects;
 CREATE POLICY "Authenticated Manage Access" ON storage.objects FOR ALL TO authenticated USING (bucket_id = 'product-images');
