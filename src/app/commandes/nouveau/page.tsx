@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Plus, Trash2, Loader2 } from "lucide-react";
 import { formatPrice } from "@/config/currency";
 import { createClient } from "@/lib/supabase";
