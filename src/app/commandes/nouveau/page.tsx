@@ -1,28 +1,38 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { ArrowLeft, Save, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, Loader2 } from "lucide-react";
 import { formatPrice } from "@/config/currency";
 import { createClient } from "@/lib/supabase";
-import { Product } from "@/types";
-
-// Removed mockProducts
+import { Product, Customer } from "@/types";
 
 export default function NewOrderPage() {
+    const router = useRouter();
     const supabase = createClient();
     const [products, setProducts] = useState<Product[]>([]);
+    const [customers, setCustomers] = useState<Customer[]>([]);
     const [items, setItems] = useState<{ productId: string; quantity: number }[]>([]);
     const [selectedProduct, setSelectedProduct] = useState("");
+    const [selectedCustomer, setSelectedCustomer] = useState("");
+    const [deliveryDate, setDeliveryDate] = useState("");
+    const [status, setStatus] = useState("new");
+    const [notes, setNotes] = useState("");
+    const [isSaving, setIsSaving] = useState(false);
 
-    useState(() => {
-        const fetchProducts = async () => {
-            const { data } = await supabase.from('products').select('*').order('name');
-            if (data) setProducts(data);
+    useEffect(() => {
+        const fetchData = async () => {
+            const [prodRes, custRes] = await Promise.all([
+                supabase.from('products').select('*').order('name'),
+                supabase.from('customers').select('*').order('name')
+            ]);
+            
+            if (prodRes.data) setProducts(prodRes.data);
+            if (custRes.data) setCustomers(custRes.data);
         };
-        fetchProducts();
-    });
+        fetchData();
+    }, [supabase]);
 
     const addItem = () => {
         if (!selectedProduct) return;
@@ -51,6 +61,58 @@ export default function NewOrderPage() {
         }, 0);
     };
 
+    const handleSave = async () => {
+        if (!selectedCustomer) {
+            alert("Veuillez sélectionner un client");
+            return;
+        }
+        if (items.length === 0) {
+            alert("Veuillez ajouter au moins un produit");
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            // 1. Create Order ID (Format: CMD-YYYYMMDD-XXXX)
+            const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+            const randomSuffix = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+            const orderId = `CMD-${dateStr}-${randomSuffix}`;
+
+            // 2. Insert Order
+            const { error: orderError } = await supabase.from('orders').insert({
+                id: orderId,
+                customer_id: selectedCustomer,
+                total_amount: calculateTotal(),
+                status: status,
+                notes: notes,
+                created_at: new Date().toISOString()
+            });
+
+            if (orderError) throw orderError;
+
+            // 3. Insert Order Items
+            const orderItems = items.map(item => {
+                const product = products.find(p => p.id === item.productId);
+                return {
+                    order_id: orderId,
+                    product_id: item.productId,
+                    quantity: item.quantity,
+                    unit_price: product?.price || 0
+                };
+            });
+
+            const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
+            if (itemsError) throw itemsError;
+
+            router.push("/commandes");
+        } catch (error: any) {
+            console.error("Error creating order:", error.message, error.details);
+            alert(`Erreur lors de la création de la commande: ${error.message}`);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     return (
         <div className="max-w-4xl mx-auto space-y-6">
             <div className="flex items-center gap-4">
@@ -70,23 +132,40 @@ export default function NewOrderPage() {
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
-                                <select className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[var(--cookie-brown)] focus:outline-none">
+                                <select 
+                                    className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[var(--cookie-brown)] focus:outline-none"
+                                    value={selectedCustomer}
+                                    onChange={(e) => setSelectedCustomer(e.target.value)}
+                                >
                                     <option value="">Sélectionner un client...</option>
-                                    <option value="1">Alice Dupont</option>
-                                    <option value="2">Boulangerie Paul</option>
+                                    {customers.map(c => (
+                                        <option key={c.id} value={c.id}>{c.name}</option>
+                                    ))}
                                 </select>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Date de livraison</label>
-                                    <input type="date" className="w-full p-2 border border-gray-200 rounded-lg" />
+                                    <input 
+                                        type="date" 
+                                        className="w-full p-2 border border-gray-200 rounded-lg" 
+                                        value={deliveryDate}
+                                        onChange={(e) => setDeliveryDate(e.target.value)}
+                                    />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                                    <select className="w-full p-2 border border-gray-200 rounded-lg" defaultValue="new">
+                                    <select 
+                                        className="w-full p-2 border border-gray-200 rounded-lg" 
+                                        value={status}
+                                        onChange={(e) => setStatus(e.target.value)}
+                                    >
                                         <option value="new">Nouvelle</option>
                                         <option value="preparing">En préparation</option>
                                         <option value="advance">Avance payée</option>
+                                        <option value="ready">Prête</option>
+                                        <option value="delivered">Livrée</option>
+                                        <option value="paid">Payée</option>
                                     </select>
                                 </div>
                             </div>
@@ -172,9 +251,13 @@ export default function NewOrderPage() {
                             </div>
                         </div>
 
-                        <button className="w-full mt-6 btn-primary flex justify-center items-center gap-2 py-3">
-                            <Save className="h-4 w-4" />
-                            Enregistrer la commande
+                        <button 
+                            onClick={handleSave}
+                            disabled={isSaving}
+                            className="w-full mt-6 btn-primary flex justify-center items-center gap-2 py-3 disabled:opacity-50"
+                        >
+                            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                            {isSaving ? "Enregistrement..." : "Enregistrer la commande"}
                         </button>
                     </div>
 
@@ -183,6 +266,8 @@ export default function NewOrderPage() {
                         <textarea
                             className="w-full p-2 border border-gray-200 rounded-lg text-sm h-32 resize-none"
                             placeholder="Instructions spéciales, code porte, etc."
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
                         ></textarea>
                     </div>
                 </div>
