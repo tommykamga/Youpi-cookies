@@ -209,7 +209,17 @@ CREATE POLICY "Profiles are viewable by everyone" ON profiles FOR SELECT TO auth
 CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE TO authenticated USING (auth.uid() = id);
 
 CREATE POLICY "Products are viewable by everyone" ON products FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Admins can manage products" ON products FOR ALL TO authenticated 
+CREATE POLICY "Admins can insert products" ON products 
+  FOR INSERT TO authenticated 
+  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT')));
+
+CREATE POLICY "Admins can update products" ON products 
+  FOR UPDATE TO authenticated 
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT')))
+  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT')));
+
+CREATE POLICY "Admins can delete products" ON products 
+  FOR DELETE TO authenticated 
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT')));
 
 CREATE POLICY "Customers are viewable by authenticated users" ON customers FOR SELECT TO authenticated USING (true);
