@@ -265,6 +265,11 @@ CREATE POLICY "Admins and Sales can manage order items" ON order_items
 CREATE POLICY "Tasks are viewable by authenticated users" ON tasks FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Tasks can be managed by authenticated users" ON tasks FOR ALL TO authenticated USING (true);
 
+-- STOCK MOVEMENTS
+CREATE POLICY "Stock movements are viewable by authenticated users" ON stock_movements FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Stock movements can be managed by authorized roles" ON stock_movements FOR ALL TO authenticated 
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT', 'PRODUCTION', 'VENTE')));
+
 -- RH (Restricted)
 CREATE POLICY "Employees are viewable by authorized roles" ON employees FOR SELECT TO authenticated 
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT')));

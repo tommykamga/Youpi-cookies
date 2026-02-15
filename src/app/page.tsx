@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase";
 import StatCard from "@/components/dashboard/StatCard";
 import RecentOrders from "@/components/dashboard/RecentOrders";
 import SalesChart from "@/components/dashboard/SalesChart";
+import DashboardChart from "@/components/dashboard/DashboardChart";
 import { Banknote, ShoppingBag, AlertTriangle, CheckCircle, Loader2 } from "lucide-react";
 import { formatPrice } from "@/config/currency";
 import { Order, Product, Task } from "@/types";
@@ -21,6 +22,8 @@ export default function Home() {
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [stockAlerts, setStockAlerts] = useState<any[]>([]);
   const [chartData, setChartData] = useState<any[]>([]);
+  const [monthlyOrdersData, setMonthlyOrdersData] = useState<any[]>([]);
+  const [weeklyProductionData, setWeeklyProductionData] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -86,6 +89,55 @@ export default function Home() {
       setRecentOrders(latestOrders || []);
       setStockAlerts(alerts.slice(0, 3));
       setChartData(groupedData);
+
+      // 7. Monthly Orders (Last 12 Months)
+      const twelveMonthsAgo = new Date();
+      twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 11);
+      twelveMonthsAgo.setDate(1);
+      const { data: monthlyData } = await supabase
+        .from('orders')
+        .select('created_at')
+        .gte('created_at', twelveMonthsAgo.toISOString());
+
+      const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+      const groupedMonthly = Array.from({ length: 12 }, (_, i) => {
+        const d = new Date(twelveMonthsAgo);
+        d.setMonth(d.getMonth() + i);
+        const monthName = months[d.getMonth()];
+        const count = monthlyData?.filter(o => {
+          const od = new Date(o.created_at);
+          return od.getMonth() === d.getMonth() && od.getFullYear() === d.getFullYear();
+        }).length || 0;
+        return { name: monthName, count };
+      });
+      setMonthlyOrdersData(groupedMonthly);
+
+      // 8. Weekly Production (Last 8 Weeks)
+      const eightWeeksAgo = new Date();
+      eightWeeksAgo.setDate(eightWeeksAgo.getDate() - (8 * 7));
+      const { data: productionData } = await supabase
+        .from('stock_movements')
+        .select('quantity, created_at')
+        .eq('type', 'IN')
+        .gte('created_at', eightWeeksAgo.toISOString());
+
+      const groupedWeekly = Array.from({ length: 8 }, (_, i) => {
+        const start = new Date(eightWeeksAgo);
+        start.setDate(start.getDate() + (i * 7));
+        const end = new Date(start);
+        end.setDate(end.getDate() + 7);
+        
+        const weekLabel = `S${i + 1}`;
+        const total = productionData
+          ?.filter(p => {
+            const pd = new Date(p.created_at);
+            return pd >= start && pd < end;
+          })
+          .reduce((sum, p) => sum + (p.quantity || 0), 0) || 0;
+        return { name: weekLabel, total };
+      });
+      setWeeklyProductionData(groupedWeekly);
+
       setLoading(false);
     };
 
@@ -164,6 +216,24 @@ export default function Home() {
             Commander du stock &rarr;
           </button>
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <DashboardChart 
+          title="Nombre de commandes mensuelles" 
+          data={monthlyOrdersData} 
+          dataKey="count" 
+          nameKey="name" 
+          color="#42A5F5"
+        />
+        <DashboardChart 
+          title="Volumes de production hebdomadaire (Unités)" 
+          data={weeklyProductionData} 
+          dataKey="total" 
+          nameKey="name" 
+          color="#66BB6A"
+          unit="u"
+        />
       </div>
 
       {/* Recent Orders */}
