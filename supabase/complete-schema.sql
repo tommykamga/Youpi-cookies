@@ -244,7 +244,14 @@ CREATE POLICY "Employees are viewable by authorized roles" ON employees FOR SELE
 CREATE POLICY "Employees can be managed by authorized roles" ON employees FOR ALL TO authenticated 
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT')));
 
+-- PAYMENTS
 CREATE POLICY "Payments are viewable by authorized roles" ON employee_payments FOR SELECT TO authenticated 
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT')));
 CREATE POLICY "Payments can be managed by authorized roles" ON employee_payments FOR ALL TO authenticated 
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT')));
+
+-- STORAGE (product-images bucket)
+-- Note: These policies apply to the storage.objects table
+CREATE POLICY "Public Read Access" ON storage.objects FOR SELECT USING (bucket_id = 'product-images');
+CREATE POLICY "Authenticated Upload Access" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'product-images');
+CREATE POLICY "Authenticated Manage Access" ON storage.objects FOR ALL TO authenticated USING (bucket_id = 'product-images');
