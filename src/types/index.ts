@@ -90,6 +90,9 @@ export type Order = {
     customer?: Customer; // Joined
     status: OrderStatus;
     total_amount: number;
+    delivery_date?: string;
+    payment_date?: string;
+    payment_method?: string;
     notes?: string;
     items?: OrderItem[];
 };

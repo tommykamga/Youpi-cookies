@@ -150,14 +150,22 @@ export default function OrderEditModal({ isOpen, onClose, order, onSave }: Order
                                             {formData.customer?.company_name || formData.customer?.name || "Client Inconnu"}
                                         </div>
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                                        <input
-                                            type="date"
-                                            value={formData.created_at ? new Date(formData.created_at).toISOString().split('T')[0] : ""}
-                                            onChange={(e) => handleChange("created_at", e.target.value)}
-                                            className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[var(--cookie-brown)] focus:outline-none"
-                                        />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Date Création</label>
+                                            <div className="p-2 bg-gray-50 border border-gray-100 rounded-lg text-gray-500 text-sm">
+                                                {formData.created_at ? new Date(formData.created_at).toLocaleDateString('fr-FR') : '-'}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Date Livraison</label>
+                                            <input
+                                                type="date"
+                                                value={formData.delivery_date ? new Date(formData.delivery_date).toISOString().split('T')[0] : ""}
+                                                onChange={(e) => handleChange("delivery_date", e.target.value)}
+                                                className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[var(--cookie-brown)] focus:outline-none"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
 

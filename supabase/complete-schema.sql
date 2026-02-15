@@ -68,6 +68,9 @@ CREATE TABLE IF NOT EXISTS public.orders (
   customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
   total_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
   status TEXT CHECK (status IN ('new', 'preparing', 'ready', 'delivered', 'invoiced', 'advance', 'paid')) DEFAULT 'new',
+  delivery_date DATE,
+  payment_date DATE,
+  payment_method TEXT,
   notes TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

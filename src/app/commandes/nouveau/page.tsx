@@ -85,6 +85,7 @@ export default function NewOrderPage() {
                 customer_id: selectedCustomer,
                 total_amount: calculateTotal(),
                 status: status,
+                delivery_date: deliveryDate || null,
                 notes: notes,
                 created_at: new Date().toISOString()
             });
@@ -105,6 +106,7 @@ export default function NewOrderPage() {
             const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
             if (itemsError) throw itemsError;
 
+            alert("Commande créée avec succès !");
             router.push("/commandes");
         } catch (error: any) {
             console.error("Error creating order:", error.message, error.details);

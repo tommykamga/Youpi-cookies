@@ -33,6 +33,15 @@ export default function OrdersPage() {
                     .order('created_at', { ascending: false });
 
                 if (error) throw error;
+                
+                // Professional Diagnostic Logging
+                console.log(`[Diagnostic] Fetched ${data?.length || 0} orders.`);
+                if (data && data.length > 0) {
+                    console.log("[Diagnostic] Sample Data:", data[0]);
+                    console.log("[Diagnostic] First Order Customer Name:", (data[0].customer as any)?.name);
+                    console.log("[Diagnostic] First Order ID:", data[0].id);
+                }
+
                 setOrders(data || []);
             } catch (err) {
                 console.error("Error fetching orders:", err);
@@ -49,7 +58,8 @@ export default function OrdersPage() {
         return orders.filter(order => {
             const matchesSearch =
                 order.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (order.customer as any)?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+                (order.customer as any)?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (order.customer as any)?.company_name?.toLowerCase().includes(searchTerm.toLowerCase());
 
             const matchesStatus = statusFilter === "all" || order.status === statusFilter;
 
@@ -71,14 +81,32 @@ export default function OrdersPage() {
     };
 
     const handleSaveOrder = async (updatedOrder: Partial<Order>) => {
-        // Refresh local state after save
-        const { data, error } = await supabase
-            .from('orders')
-            .select('*, customer:customers(*)')
-            .order('created_at', { ascending: false });
-        
-        if (!error && data) {
-            setOrders(data);
+        try {
+            const { error: updateError } = await supabase
+                .from('orders')
+                .update({
+                    status: updatedOrder.status,
+                    notes: updatedOrder.notes,
+                    total_amount: updatedOrder.total_amount,
+                    delivery_date: updatedOrder.delivery_date
+                })
+                .eq('id', updatedOrder.id);
+
+            if (updateError) throw updateError;
+
+            // Refresh local state after save
+            const { data, error } = await supabase
+                .from('orders')
+                .select('*, customer:customers(*)')
+                .order('created_at', { ascending: false });
+            
+            if (!error && data) {
+                setOrders(data);
+                alert("Commande mise à jour avec succès !");
+            }
+        } catch (err: any) {
+            console.error("Error saving order:", err);
+            alert(`Erreur lors de la sauvegarde: ${err.message}`);
         }
     };
 
@@ -104,13 +132,30 @@ export default function OrdersPage() {
 
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <h1 className="text-2xl font-bold text-[var(--cookie-brown)]">Gestion Commandes</h1>
-                <Link
-                    href="/commandes/nouveau"
-                    className="btn-primary flex items-center gap-2 shadow-md hover:shadow-lg transform transition-transform hover:-translate-y-0.5"
-                >
-                    <Plus className="h-4 w-4" />
-                    Nouvelle Commande
-                </Link>
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={() => {
+                                setLoading(true);
+                                supabase.from('orders').select('*, customer:customers(*)')
+                                    .order('created_at', { ascending: false })
+                                    .then(({ data }) => {
+                                        setOrders(data || []);
+                                        setLoading(false);
+                                    });
+                            }}
+                            className="bg-gray-100 p-2 rounded-lg text-gray-500 hover:text-[var(--cookie-brown)]"
+                            title="Actualiser"
+                        >
+                            <Loader2 className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+                        </button>
+                        <Link
+                            href="/commandes/nouveau"
+                            className="btn-primary flex items-center gap-2 shadow-md hover:shadow-lg transform transition-transform hover:-translate-y-0.5"
+                        >
+                            <Plus className="h-4 w-4" />
+                            Nouvelle Commande
+                        </Link>
+                    </div>
             </div>
 
             {/* Filters Bar */}
