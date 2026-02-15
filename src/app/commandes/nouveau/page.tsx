@@ -107,6 +107,7 @@ export default function NewOrderPage() {
             if (itemsError) throw itemsError;
 
             alert("Commande créée avec succès !");
+            router.refresh();
             router.push("/commandes");
         } catch (error: any) {
             console.error("Error creating order:", error.message, error.details);

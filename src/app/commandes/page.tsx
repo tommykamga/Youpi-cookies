@@ -35,11 +35,11 @@ export default function OrdersPage() {
                 if (error) throw error;
                 
                 // Professional Diagnostic Logging
-                console.log(`[Diagnostic] Fetched ${data?.length || 0} orders.`);
+                console.log(`[Diagnostic] Orders fetched: ${data?.length || 0}`);
                 if (data && data.length > 0) {
-                    console.log("[Diagnostic] Sample Data:", data[0]);
-                    console.log("[Diagnostic] First Order Customer Name:", (data[0].customer as any)?.name);
-                    console.log("[Diagnostic] First Order ID:", data[0].id);
+                    console.log("[Diagnostic] RAW Data structure:", data[0]);
+                    console.log("[Diagnostic] Customer object:", data[0].customer);
+                    console.log("[Diagnostic] Customer Name:", (data[0].customer as any)?.name);
                 }
 
                 setOrders(data || []);
@@ -56,10 +56,12 @@ export default function OrdersPage() {
     // Filter Logic
     const filteredOrders = useMemo(() => {
         return orders.filter(order => {
-            const matchesSearch =
-                order.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (order.customer as any)?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (order.customer as any)?.company_name?.toLowerCase().includes(searchTerm.toLowerCase());
+            const s = searchTerm.toLowerCase();
+            const matchesSearch = !s || (
+                (order.id?.toLowerCase()?.includes(s)) ||
+                ((order.customer as any)?.name?.toLowerCase()?.includes(s)) ||
+                ((order.customer as any)?.company_name?.toLowerCase()?.includes(s))
+            );
 
             const matchesStatus = statusFilter === "all" || order.status === statusFilter;
 
@@ -131,7 +133,12 @@ export default function OrdersPage() {
             />
 
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h1 className="text-2xl font-bold text-[var(--cookie-brown)]">Gestion Commandes</h1>
+                <h1 className="text-2xl font-bold text-[var(--cookie-brown)]">
+                    Gestion Commandes 
+                    <span className="ml-2 text-sm font-normal text-gray-400">
+                        ({filteredOrders.length} sur {orders.length})
+                    </span>
+                </h1>
                     <div className="flex gap-2">
                         <button 
                             onClick={() => {
@@ -327,6 +334,22 @@ export default function OrdersPage() {
                                         </motion.tr>
                                     ))}
                                 </AnimatePresence>
+                                {filteredOrders.length === 0 && (
+                                    <tr>
+                                        <td colSpan={6} className="px-6 py-12 text-center text-gray-400 italic">
+                                            {orders.length === 0 
+                                                ? "Aucune commande trouvée dans la base de données." 
+                                                : "Aucune commande ne correspond à vos filtres."}
+                                            <br />
+                                            <button 
+                                                onClick={() => window.location.reload()}
+                                                className="mt-2 text-xs text-[var(--cookie-brown)] font-bold hover:underline"
+                                            >
+                                                Forcer l'actualisation complète
+                                            </button>
+                                        </td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     )}
