@@ -235,12 +235,24 @@ CREATE POLICY "Commercials and Admins can delete customers" ON customers FOR DEL
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT', 'RESPONSABLE_COMMERCIALE')));
 
 CREATE POLICY "Orders are viewable by authenticated users" ON orders FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Orders can be managed by authorized roles" ON orders FOR ALL TO authenticated 
+CREATE POLICY "Admins and Sales can insert orders" ON orders 
+  FOR INSERT TO authenticated 
+  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT', 'RESPONSABLE_COMMERCIALE', 'VENTE')));
+
+CREATE POLICY "Admins and Sales can update orders" ON orders 
+  FOR UPDATE TO authenticated 
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT', 'RESPONSABLE_COMMERCIALE', 'VENTE')))
+  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT', 'RESPONSABLE_COMMERCIALE', 'VENTE')));
+
+CREATE POLICY "Admins and Sales can delete orders" ON orders 
+  FOR DELETE TO authenticated 
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT', 'RESPONSABLE_COMMERCIALE', 'VENTE')));
 
 CREATE POLICY "Order items are viewable by authenticated users" ON order_items FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Order items can be managed by authorized roles" ON order_items FOR ALL TO authenticated 
-  USING (EXISTS (SELECT 1 FROM orders o JOIN profiles p ON p.id = auth.uid() WHERE o.id = order_id AND p.role IN ('SUPER_ADMIN', 'GERANT', 'RESPONSABLE_COMMERCIALE', 'VENTE')));
+CREATE POLICY "Admins and Sales can manage order items" ON order_items 
+  FOR ALL TO authenticated 
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT', 'RESPONSABLE_COMMERCIALE', 'VENTE')))
+  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT', 'RESPONSABLE_COMMERCIALE', 'VENTE')));
 
 -- TASKS
 CREATE POLICY "Tasks are viewable by authenticated users" ON tasks FOR SELECT TO authenticated USING (true);
