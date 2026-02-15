@@ -223,7 +223,15 @@ CREATE POLICY "Admins can delete products" ON products
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT')));
 
 CREATE POLICY "Customers are viewable by authenticated users" ON customers FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Commercials and Admins can manage customers" ON customers FOR ALL TO authenticated 
+CREATE POLICY "Any authenticated user can insert customers" ON customers 
+  FOR INSERT TO authenticated 
+  WITH CHECK (true);
+
+CREATE POLICY "Commercials and Admins can update customers" ON customers FOR UPDATE TO authenticated 
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT', 'RESPONSABLE_COMMERCIALE')))
+  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT', 'RESPONSABLE_COMMERCIALE')));
+
+CREATE POLICY "Commercials and Admins can delete customers" ON customers FOR DELETE TO authenticated 
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('SUPER_ADMIN', 'GERANT', 'RESPONSABLE_COMMERCIALE')));
 
 CREATE POLICY "Orders are viewable by authenticated users" ON orders FOR SELECT TO authenticated USING (true);

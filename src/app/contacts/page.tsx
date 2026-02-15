@@ -88,11 +88,21 @@ export default function ContactsPage() {
         if (contact.id) {
             // Update
             const { error } = await supabase.from('customers').update(dbPayload).eq('id', contact.id);
-            if (!error) fetchContacts();
+            if (!error) {
+                fetchContacts();
+            } else {
+                console.error("Error updating contact:", error.message, error.details);
+                alert(`Erreur lors de la modification du contact: ${error.message}`);
+            }
         } else {
             // Create
             const { error } = await supabase.from('customers').insert([dbPayload]);
-            if (!error) fetchContacts();
+            if (!error) {
+                fetchContacts();
+            } else {
+                console.error("Error creating contact:", error.message, error.details);
+                alert(`Erreur lors de la création du contact: ${error.message}`);
+            }
         }
         setIsModalOpen(false);
     };
