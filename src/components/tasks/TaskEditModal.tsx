@@ -20,14 +20,22 @@ interface TaskEditModalProps {
 export default function TaskEditModal({ isOpen, onClose, task, onSave, onDelete, onDuplicate }: TaskEditModalProps) {
     const supabase = createClient();
     const [formData, setFormData] = useState<Partial<Task>>({});
-    const [profiles, setProfiles] = useState<{ id: string, fullName: string }[]>([]);
+    const [employees, setEmployees] = useState<{ id: string, fullName: string }[]>([]);
+    const [loadingEmployees, setLoadingEmployees] = useState(false);
 
     useEffect(() => {
-        const fetchProfiles = async () => {
-            const { data } = await supabase.from('profiles').select('id, fullName').order('fullName');
-            if (data) setProfiles(data);
+        const fetchEmployees = async () => {
+            setLoadingEmployees(true);
+            const { data } = await supabase
+                .from('employees')
+                .select('id, fullName')
+                .eq('active', true)
+                .order('fullName');
+
+            if (data) setEmployees(data as any);
+            setLoadingEmployees(false);
         };
-        if (isOpen) fetchProfiles();
+        if (isOpen) fetchEmployees();
     }, [isOpen, supabase]);
 
     useEffect(() => {
@@ -110,8 +118,8 @@ export default function TaskEditModal({ isOpen, onClose, task, onSave, onDelete,
                                         className="w-full p-2 border border-gray-200 rounded-lg"
                                     >
                                         <option value="">Non assigné</option>
-                                        {profiles.map(p => (
-                                            <option key={p.id} value={p.id}>{p.fullName}</option>
+                                        {employees.map(p => (
+                                            <option key={p.id} value={p.fullName}>{p.fullName}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -140,10 +148,10 @@ export default function TaskEditModal({ isOpen, onClose, task, onSave, onDelete,
                                                 key={p}
                                                 onClick={() => handleChange("priority", p)}
                                                 className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${formData.priority === p
-                                                        ? p === 'high' ? 'bg-red-100 border-red-200 text-red-700'
-                                                            : p === 'medium' ? 'bg-orange-100 border-orange-200 text-orange-700'
-                                                                : 'bg-green-100 border-green-200 text-green-700'
-                                                        : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                                                    ? p === 'high' ? 'bg-red-100 border-red-200 text-red-700'
+                                                        : p === 'medium' ? 'bg-orange-100 border-orange-200 text-orange-700'
+                                                            : 'bg-green-100 border-green-200 text-green-700'
+                                                    : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
                                                     }`}
                                             >
                                                 {p === 'high' ? 'Haute' : p === 'medium' ? 'Moyenne' : 'Basse'}

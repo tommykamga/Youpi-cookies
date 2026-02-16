@@ -114,7 +114,7 @@ CREATE TABLE IF NOT EXISTS public.tasks (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   title TEXT NOT NULL,
   description TEXT,
-  assigned_to UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  assigned_to TEXT,
   due_date DATE,
   priority TEXT CHECK (priority IN ('low', 'medium', 'high')) DEFAULT 'medium',
   status TEXT CHECK (status IN ('todo', 'in_progress', 'done')) DEFAULT 'todo',

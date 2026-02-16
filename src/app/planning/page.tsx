@@ -24,7 +24,9 @@ export default function TasksPage() {
             .from('tasks')
             .select('*')
             .order('created_at', { ascending: false });
-        
+
+        if (error) console.error("Error fetching tasks:", error);
+
         if (data) setTasks(data);
         setLoading(false);
     };
@@ -75,6 +77,7 @@ export default function TasksPage() {
                 .from('tasks')
                 .insert([updated])
                 .select();
+            if (error) console.error("Insert error:", error);
             if (data) setTasks([data[0], ...tasks]);
         } else {
             // Update
@@ -82,6 +85,7 @@ export default function TasksPage() {
                 .from('tasks')
                 .update(updated)
                 .eq('id', updated.id);
+            if (error) console.error("Update error:", error);
             if (!error) {
                 setTasks(prev => prev.map(t => t.id === updated.id ? { ...t, ...updated } : t));
             }
@@ -110,12 +114,12 @@ export default function TasksPage() {
         const task = tasks.find(t => t.id === id);
         if (!task) return;
         const newStatus = task.status === 'done' ? 'todo' : 'done';
-        
+
         const { error } = await supabase
             .from('tasks')
             .update({ status: newStatus })
             .eq('id', id);
-            
+
         if (!error) {
             setTasks(prev => prev.map(t =>
                 t.id === id ? { ...t, status: newStatus } : t
@@ -147,7 +151,7 @@ export default function TasksPage() {
                     <h1 className="text-2xl font-bold text-[var(--cookie-brown)]">Planning & Tâches</h1>
                     <p className="text-sm text-gray-500 flex items-center gap-2">
                         {loading ? (
-                             <Loader2 className="h-4 w-4 animate-spin" />
+                            <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                             <>
                                 {urgentTasksCount > 0 && (
@@ -287,16 +291,16 @@ export default function TasksPage() {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <span className={`px-2 py-1 rounded text-xs font-medium border ${task.priority === 'high' ? 'bg-red-50 text-red-700 border-red-100' :
-                                                        task.priority === 'medium' ? 'bg-orange-50 text-orange-700 border-orange-100' :
-                                                            'bg-green-50 text-green-700 border-green-100'
+                                                    task.priority === 'medium' ? 'bg-orange-50 text-orange-700 border-orange-100' :
+                                                        'bg-green-50 text-green-700 border-green-100'
                                                     }`}>
                                                     {task.priority === 'high' ? 'Haute' : task.priority === 'medium' ? 'Moyenne' : 'Basse'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-center">
                                                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${task.status === 'done' ? 'bg-gray-100 text-gray-800' :
-                                                        task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                                                            'bg-yellow-100 text-yellow-800'
+                                                    task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                                                        'bg-yellow-100 text-yellow-800'
                                                     }`}>
                                                     {task.status === 'done' ? 'Terminée' : task.status === 'in_progress' ? 'En cours' : 'À faire'}
                                                 </span>
@@ -330,8 +334,8 @@ export default function TasksPage() {
                                     >
                                         <div className="flex justify-between items-start mb-2">
                                             <span className={`text-xs font-medium px-2 py-0.5 rounded ${task.priority === 'high' ? 'bg-red-50 text-red-700' :
-                                                    task.priority === 'medium' ? 'bg-orange-50 text-orange-700' :
-                                                        'bg-green-50 text-green-700'
+                                                task.priority === 'medium' ? 'bg-orange-50 text-orange-700' :
+                                                    'bg-green-50 text-green-700'
                                                 }`}>
                                                 {task.priority === 'high' ? 'Haute' : task.priority === 'medium' ? 'Moyenne' : 'Basse'}
                                             </span>

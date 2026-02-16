@@ -42,6 +42,7 @@ export type Task = {
         label: string;
     };
     created_at?: string;
+    updated_at?: string;
 };
 
 export type User = {
