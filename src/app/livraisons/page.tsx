@@ -26,8 +26,17 @@ export default function DeliveriesPage() {
         setLoading(false);
     };
 
+    // Stats
+    const [stats, setStats] = useState<any[]>([]);
+
+    const fetchStats = async () => {
+        const { data } = await supabase.from('delivery_stats_view').select('*').order('mois', { ascending: false });
+        if (data) setStats(data);
+    };
+
     useEffect(() => {
         fetchDeliveries();
+        fetchStats();
     }, []);
 
     const handleNew = () => {
@@ -58,13 +67,27 @@ export default function DeliveriesPage() {
             }
         }
         setIsModalOpen(false);
+        fetchStats();
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm("Supprimer cette livraison ?")) return;
-        const { error } = await supabase.from('delivery_costs').delete().eq('id', id);
-        if (!error) {
-            setDeliveries(prev => prev.filter(d => d.id !== id));
+        console.log("handleDelete called for:", id);
+        // if (!confirm("Supprimer cette livraison ?")) return;
+        console.log("Attempting to delete:", id);
+        const { error, data } = await supabase.from('delivery_costs').delete().eq('id', id).select();
+        console.log("Delete response:", { error, data });
+
+        if (error) {
+            console.error("Error deleting:", error);
+            alert("Erreur lors de la suppression");
+        } else {
+            console.log("Deleted count:", data?.length);
+            if (data && data.length > 0) {
+                setDeliveries(prev => prev.filter(d => d.id !== id));
+                fetchStats(); // Refresh stats
+            } else {
+                console.warn("No rows deleted. RLS policy violation?");
+            }
         }
         setIsModalOpen(false);
     };
@@ -85,25 +108,42 @@ export default function DeliveriesPage() {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 delivery={selectedDelivery}
-                onSave={handleSave}
+                onSave={(data) => { handleSave(data); fetchStats(); }}
                 onDelete={handleDelete}
             />
 
-            {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-[var(--cookie-brown)]">Suivi Livraisons</h1>
-                    <p className="text-sm text-gray-500">
-                        {filteredDeliveries.length} livraisons • Total: {totalCost.toLocaleString('fr-FR')} FCFA
-                    </p>
+            {/* Header with Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <div className="text-sm text-gray-500">Ce Mois</div>
+                    <div className="text-2xl font-bold text-[var(--cookie-brown)]">
+                        {stats[0]?.total_frais?.toLocaleString('fr-FR') || 0} <span className="text-sm font-normal text-gray-400">FCFA</span>
+                    </div>
+                </div>
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <div className="text-sm text-gray-500">Livraisons (Mois)</div>
+                    <div className="text-2xl font-bold text-gray-900">
+                        {stats[0]?.nb_livraisons || 0}
+                    </div>
+                </div>
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <div className="text-sm text-gray-500">Coût Moyen/Carton</div>
+                    <div className="text-2xl font-bold text-blue-600">
+                        {Math.round(stats[0]?.cout_carton || 0).toLocaleString('fr-FR')} <span className="text-sm font-normal text-gray-400">FCFA</span>
+                    </div>
                 </div>
                 <button
                     onClick={handleNew}
-                    className="flex items-center gap-2 px-4 py-2 bg-[var(--cookie-brown)] text-white rounded-full text-sm font-medium hover:bg-opacity-90 shadow-lg transition-all"
+                    className="flex flex-col items-center justify-center bg-[var(--cookie-brown)] text-white rounded-xl shadow-lg hover:shadow-xl transition-all"
                 >
-                    <Plus className="h-4 w-4" />
-                    Nouvelle Course
+                    <Plus className="h-6 w-6 mb-1" />
+                    <span className="text-sm font-medium">Nouvelle Course</span>
                 </button>
+            </div>
+
+            {/* List Header */}
+            <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-gray-900">Historique des courses</h2>
             </div>
 
             {/* Search */}
@@ -175,9 +215,18 @@ export default function DeliveriesPage() {
                                             {item.cartons ? <div className="flex items-center gap-1"><Package className="h-3 w-3" /> {item.cartons} ctns</div> : null}
                                             {item.order_id ? <div className="text-blue-600 font-medium">#{item.order_id}</div> : null}
                                         </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <button className="p-2 text-gray-400 hover:text-[var(--cookie-brown)] transition-colors">
+                                        <td className="px-6 py-4 text-right flex justify-end gap-2">
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleEdit(item); }}
+                                                className="p-2 text-gray-400 hover:text-[var(--cookie-brown)] transition-colors"
+                                            >
                                                 <Edit2 className="h-4 w-4" />
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
+                                                className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
                                             </button>
                                         </td>
                                     </motion.tr>
