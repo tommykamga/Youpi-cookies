@@ -335,3 +335,29 @@ CREATE POLICY "Authenticated Upload Access" ON storage.objects FOR INSERT TO aut
 
 DROP POLICY IF EXISTS "Authenticated Manage Access" ON storage.objects;
 CREATE POLICY "Authenticated Manage Access" ON storage.objects FOR ALL TO authenticated USING (bucket_id = 'product-images');
+
+-- ==========================================
+-- 6. DELIVERY COSTS
+-- ==========================================
+CREATE TABLE IF NOT EXISTS public.delivery_costs (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  delivery_date date NOT NULL DEFAULT current_date,
+  origin text DEFAULT 'Nkolbong' NOT NULL,
+  destination text NOT NULL,
+  transport_type text CHECK (transport_type IN ('Moto', 'Taxi')) NOT NULL,
+  cost numeric(10,2) NOT NULL CHECK (cost > 0),
+  cartons integer CHECK (cartons >= 0),
+  driver_name text NOT NULL,
+  driver_phone text,
+  order_id text REFERENCES public.orders(id) ON DELETE SET NULL,
+  notes text,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_delivery_date ON public.delivery_costs(delivery_date);
+CREATE INDEX IF NOT EXISTS idx_delivery_month ON public.delivery_costs(date_trunc('month', delivery_date));
+
+ALTER TABLE public.delivery_costs ENABLE ROW LEVEL SECURITY;
+-- Using broad policy for simplest implementation as requested
+CREATE POLICY "Admins manage delivery_costs" ON public.delivery_costs FOR ALL USING (true) WITH CHECK (true);
+

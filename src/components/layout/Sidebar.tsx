@@ -55,6 +55,7 @@ const navigation: NavItem[] = [
     { name: "Stocks", href: "/stocks", icon: Package, permission: 'stocks' },
     { name: "Facturation", href: "/facturation", icon: FileText, permission: 'billing' },
     { name: "Planning", href: "/planning", icon: Calendar, permission: 'planning' },
+    { name: "Livraisons", href: "/livraisons", icon: Package, permission: 'orders' },
     { name: "RH", href: "/rh", icon: Users, permission: 'rh' },
     { name: "Utilisateurs", href: "/utilisateurs", icon: Settings, permission: 'users' },
 ];

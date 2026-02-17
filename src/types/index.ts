@@ -124,3 +124,18 @@ export type Contact = {
     createdAt: string;
     updatedAt: string;
 };
+
+export type DeliveryCost = {
+    id: string;
+    delivery_date: string;
+    origin: string;
+    destination: string;
+    transport_type: 'Moto' | 'Taxi';
+    cost: number;
+    cartons?: number;
+    driver_name: string;
+    driver_phone?: string;
+    order_id?: string;
+    notes?: string;
+    created_at?: string;
+};
