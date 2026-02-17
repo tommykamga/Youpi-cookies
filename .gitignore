@@ -28,3 +28,7 @@ next-env.d.ts
 # OS
 .DS_Store
 Thumbs.db
+
+# Backup and Settings
+node_modules_bak/
+.vscode/
