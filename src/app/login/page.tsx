@@ -119,7 +119,7 @@ export default function LoginPage() {
                     <div className="mt-8 pt-6 border-t border-[#FDF8F3] text-center">
                         <p className="text-xs text-[#A1887F]">
                             Accès réservé au personnel de <br />
-                            <span className="font-bold text-[#5D4037]">Youpi Cookies S.A.RL</span>
+                            <span className="font-bold text-[#5D4037]">Yélélé Digit Mark SARL</span>
                         </p>
                     </div>
                 </div>
