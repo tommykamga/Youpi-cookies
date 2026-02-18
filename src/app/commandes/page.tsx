@@ -36,7 +36,7 @@ export default function OrdersPage() {
                     console.error("[Diagnostic] FETCH ERROR:", error.message, error.details, error.hint);
                     throw error;
                 }
-                
+
                 // Professional Diagnostic Logging
                 console.log(`[Diagnostic] Orders fetched: ${data?.length || 0}`);
                 if (data && data.length > 0) {
@@ -106,7 +106,7 @@ export default function OrdersPage() {
                 .from('orders')
                 .select('*, customer:customers(*)')
                 .order('created_at', { ascending: false });
-            
+
             if (!error && data) {
                 setOrders(data);
                 alert("Commande mise à jour avec succès !");
@@ -120,26 +120,25 @@ export default function OrdersPage() {
     const handleDeleteOrder = async (orderId: string) => {
         try {
             console.log(`[Diagnostic] Attempting to delete order: ${orderId}`);
-            
-            const { data, error, count } = await supabase
+
+            // Database TRIGGER (ON DELETE CASCADE) will auto-delete the invoice.
+            const { error } = await supabase
                 .from('orders')
                 .delete()
-                .eq('id', orderId)
-                .select(); // Requesting data back to verify deletion
+                .eq('id', orderId);
 
             if (error) throw error;
-
-            if (!data || data.length === 0) {
-                console.warn(`[Diagnostic] No rows deleted for ID: ${orderId}. This usually means an RLS policy blocked the action.`);
-                alert("Erreur : La commande n'a pas pu être supprimée. Vérifiez vos permissions ou si la commande existe encore.");
-                return;
-            }
 
             console.log(`[Diagnostic] Successfully deleted order: ${orderId}`);
 
             // Refresh local state
-            setOrders(orders.filter(o => o.id !== orderId));
-            alert("Commande supprimée avec succès !");
+            setOrders(current => current.filter(o => o.id !== orderId));
+
+            // Close modal if open
+            if (selectedOrder?.id === orderId) {
+                setIsModalOpen(false);
+            }
+
         } catch (err: any) {
             console.error("[Diagnostic] Error deleting order:", err);
             alert(`Erreur lors de la suppression: ${err.message}`);
@@ -169,35 +168,35 @@ export default function OrdersPage() {
 
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <h1 className="text-2xl font-bold text-[var(--cookie-brown)]">
-                    Gestion Commandes 
+                    Gestion Commandes
                     <span className="ml-2 text-sm font-normal text-gray-400">
                         ({filteredOrders.length} sur {orders.length})
                     </span>
                 </h1>
-                    <div className="flex gap-2">
-                        <button 
-                            onClick={() => {
-                                setLoading(true);
-                                supabase.from('orders').select('*, customer:customers(*)')
-                                    .order('created_at', { ascending: false })
-                                    .then(({ data }) => {
-                                        setOrders(data || []);
-                                        setLoading(false);
-                                    });
-                            }}
-                            className="bg-gray-100 p-2 rounded-lg text-gray-500 hover:text-[var(--cookie-brown)]"
-                            title="Actualiser"
-                        >
-                            <Loader2 className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
-                        </button>
-                        <Link
-                            href="/commandes/nouveau"
-                            className="btn-primary flex items-center gap-2 shadow-md hover:shadow-lg transform transition-transform hover:-translate-y-0.5"
-                        >
-                            <Plus className="h-4 w-4" />
-                            Nouvelle Commande
-                        </Link>
-                    </div>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => {
+                            setLoading(true);
+                            supabase.from('orders').select('*, customer:customers(*)')
+                                .order('created_at', { ascending: false })
+                                .then(({ data }) => {
+                                    setOrders(data || []);
+                                    setLoading(false);
+                                });
+                        }}
+                        className="bg-gray-100 p-2 rounded-lg text-gray-500 hover:text-[var(--cookie-brown)]"
+                        title="Actualiser"
+                    >
+                        <Loader2 className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+                    </button>
+                    <Link
+                        href="/commandes/nouveau"
+                        className="btn-primary flex items-center gap-2 shadow-md hover:shadow-lg transform transition-transform hover:-translate-y-0.5"
+                    >
+                        <Plus className="h-4 w-4" />
+                        Nouvelle Commande
+                    </Link>
+                </div>
             </div>
 
             {/* Filters Bar */}
@@ -365,8 +364,8 @@ export default function OrdersPage() {
                                                         <Copy className="h-4 w-4" />
                                                     </button>
                                                     <button
-                                                        onClick={(e) => { 
-                                                            e.stopPropagation(); 
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
                                                             if (window.confirm("Êtes-vous sûr de vouloir supprimer cette commande ?")) {
                                                                 handleDeleteOrder(order.id!);
                                                             }
@@ -384,11 +383,11 @@ export default function OrdersPage() {
                                 {filteredOrders.length === 0 && (
                                     <tr>
                                         <td colSpan={6} className="px-6 py-12 text-center text-gray-400 italic">
-                                            {orders.length === 0 
-                                                ? "Aucune commande trouvée dans la base de données." 
+                                            {orders.length === 0
+                                                ? "Aucune commande trouvée dans la base de données."
                                                 : "Aucune commande ne correspond à vos filtres."}
                                             <br />
-                                            <button 
+                                            <button
                                                 onClick={() => window.location.reload()}
                                                 className="mt-2 text-xs text-[var(--cookie-brown)] font-bold hover:underline"
                                             >

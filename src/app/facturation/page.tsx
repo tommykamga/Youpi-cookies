@@ -26,6 +26,7 @@ export default function InvoicesPage() {
                         status,
                         customer:customers (
                             id,
+                            company_name,
                             name,
                             email
                         )
@@ -47,10 +48,13 @@ export default function InvoicesPage() {
         fetchInvoices();
     }, []);
 
-    const filteredInvoices = invoices.filter(invoice =>
-        invoice.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (invoice.order?.customer?.name || "").toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredInvoices = invoices.filter(invoice => {
+        const customer = invoice.order?.customer;
+        const customerName = (customer?.company_name || customer?.name || "").toLowerCase();
+        const search = searchTerm.toLowerCase();
+
+        return invoice.id.toLowerCase().includes(search) || customerName.includes(search);
+    });
 
     if (loading && invoices.length === 0) {
         return (
@@ -119,7 +123,7 @@ export default function InvoicesPage() {
                                             {invoice.order?.id || "N/A"}
                                         </td>
                                         <td className="px-6 py-4 font-medium">
-                                            {invoice.order?.customer?.name || "Client Inconnu"}
+                                            {invoice.order?.customer?.company_name || invoice.order?.customer?.name || "Client Inconnu"}
                                         </td>
                                         <td className="px-6 py-4 text-gray-500">
                                             {new Date(invoice.created_at).toLocaleDateString('fr-FR')}
