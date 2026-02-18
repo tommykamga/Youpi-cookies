@@ -143,7 +143,7 @@ export default function StocksPage() {
                                         {product.name}
                                     </td>
                                     <td className="px-6 py-4 font-bold">
-                                        {product.stock} {product.unit}
+                                        {product.stock}
                                     </td>
                                     <td className="px-6 py-4 text-gray-500">
                                         {product.alert_threshold || 10}

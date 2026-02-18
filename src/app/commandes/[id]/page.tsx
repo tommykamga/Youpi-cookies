@@ -99,24 +99,24 @@ export default function InvoiceDetailsPage({ params }: { params: Promise<{ id: s
                 {/* Invoice Header */}
                 <div className="flex justify-between items-start mb-12">
                     <div>
-                        {/* Logo Placeholder */}
-                        <div className="w-16 h-16 bg-[var(--cookie-brown)] rounded-lg flex items-center justify-center text-white font-bold text-xl mb-4">
-                            YC
-                        </div>
-                        <h2 className="text-xl font-bold text-gray-900">Youpi Cookies</h2>
-                        <div className="text-sm text-gray-500 space-y-1 mt-2">
-                            <p>123 Avenue des Biscuits</p>
-                            <p>Yaoundé, Cameroun</p>
-                            <p>+237 6 00 00 00 00</p>
-                            <p>contact@youpicookies.com</p>
+                        <h2 className="text-2xl font-bold text-[#0f766e]">YELELE DIGIT MARK SARL</h2>
+                        <div className="text-sm text-gray-500 space-y-1 mt-2 font-medium">
+                            <p>12498 Bonabéri, Face DK Hotel</p>
+                            <p>Douala, Cameroun</p>
+                            <p>+237 6 98 08 31 74 / +237 6 82 22 77 91</p>
+                            <p>yeleledigitmark@yahoo.fr</p>
                         </div>
                     </div>
+
                     <div className="text-right">
-                        <h1 className="text-3xl font-bold text-[var(--cookie-brown)] mb-2">FACTURE</h1>
-                        <p className="text-lg font-medium text-gray-900">#{order.id.replace('INV-', '')}</p>
-                        <div className="mt-4 space-y-1 text-sm">
-                            <p className="text-gray-500">Date d'émission: <span className="font-medium text-gray-900">{new Date(order.created_at || Date.now()).toLocaleDateString('fr-FR')}</span></p>
-                            <div className="flex items-center justify-end gap-2 mt-2">
+                        <h1 className="text-4xl font-black text-[#f59e0b] mb-2 tracking-wide">FACTURE</h1>
+                        <p className="text-xl font-bold text-gray-800">#{order.id.replace('INV-', '')}</p>
+                        <div className="mt-6 space-y-2 text-sm">
+                            <p className="text-gray-500">Date d'émission</p>
+                            <p className="font-bold text-gray-900 text-lg">
+                                {new Date(order.created_at || Date.now()).toLocaleDateString('fr-FR')}
+                            </p>
+                            <div className="flex items-center justify-end gap-2 mt-4">
                                 <StatusBadge status={order.status} />
                             </div>
                         </div>
@@ -124,28 +124,28 @@ export default function InvoiceDetailsPage({ params }: { params: Promise<{ id: s
                 </div>
 
                 {/* Client Info */}
-                <div className="mb-12 p-6 bg-gray-50 rounded-lg border border-gray-100 print:bg-transparent print:border-gray-200">
-                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Facturé à</h3>
+                <div className="mb-12 p-8 bg-gray-50/50 rounded-2xl border border-gray-100 print:bg-transparent print:border-gray-200">
+                    <h3 className="text-xs font-bold text-[#0f766e] uppercase tracking-widest mb-6 border-b border-[#0f766e]/20 pb-2 w-full">Facturé à</h3>
                     <div className="flex flex-col md:flex-row justify-between gap-8">
                         <div>
-                            <p className="text-lg font-bold text-gray-900">{order.customer?.company_name || order.customer?.name}</p>
+                            <p className="text-xl font-bold text-gray-900 mb-1">{order.customer?.company_name || order.customer?.name}</p>
                             {order.customer?.company_name && (
-                                <p className="text-sm text-gray-600">{order.customer?.name}</p>
+                                <p className="text-md text-gray-600 mb-2">{order.customer?.name}</p>
                             )}
-                            <div className="text-sm text-gray-500 mt-2 space-y-1">
+                            <div className="text-sm text-gray-500 space-y-1">
                                 <p className="flex items-center gap-2">
-                                    <MapPin className="h-3 w-3" />
+                                    <MapPin className="h-4 w-4 text-[#f59e0b]" />
                                     {order.customer?.address || "Adresse inconnue"}
                                 </p>
                                 {order.customer?.email && (
                                     <p className="flex items-center gap-2">
-                                        <Mail className="h-3 w-3" />
+                                        <Mail className="h-4 w-4 text-[#f59e0b]" />
                                         {order.customer?.email}
                                     </p>
                                 )}
                                 {order.customer?.phone && (
                                     <p className="flex items-center gap-2">
-                                        <Phone className="h-3 w-3" />
+                                        <Phone className="h-4 w-4 text-[#f59e0b]" />
                                         {order.customer?.phone}
                                     </p>
                                 )}
@@ -171,12 +171,12 @@ export default function InvoiceDetailsPage({ params }: { params: Promise<{ id: s
                 {/* Items Table */}
                 <div className="mb-12">
                     <table className="w-full text-sm text-left">
-                        <thead className="bg-gray-50 text-gray-500 border-b border-gray-100 print:bg-gray-100">
+                        <thead className="bg-[#0f766e] text-white border-b border-[#0f766e] print:bg-[#0f766e] print:text-white">
                             <tr>
-                                <th className="px-4 py-3 font-medium">Description</th>
-                                <th className="px-4 py-3 font-medium text-right">Prix Unitaire</th>
-                                <th className="px-4 py-3 font-medium text-right">Qté</th>
-                                <th className="px-4 py-3 font-medium text-right">Total</th>
+                                <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">Description</th>
+                                <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs text-right">Prix Unitaire</th>
+                                <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs text-right">Qté</th>
+                                <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs text-right">Total</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -220,9 +220,51 @@ export default function InvoiceDetailsPage({ params }: { params: Promise<{ id: s
                 </div>
 
                 {/* Footer Notes */}
-                <div className="mt-12 pt-8 border-t border-gray-100 text-center text-sm text-gray-500 print:mt-24">
+                <div className="mt-20 text-center text-sm text-gray-500 mb-8 print:mb-4">
                     <p className="font-medium text-gray-900 mb-1">Merci pour votre confiance !</p>
-                    <p>Conditions de paiement : Paiement à réception de facture.</p>
+                </div>
+
+                {/* New Design Footer - Full Width & Compact */}
+                <div className="-mx-8 -mb-8 md:-mx-12 md:-mb-12 mt-8 bg-gradient-to-br from-[#0f766e] to-[#115e59] text-white p-6 border-t-4 border-[#f59e0b] font-sans print:break-inside-avoid rounded-b-xl">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                        <div className="space-y-2">
+                            <h3 className="font-bold text-lg uppercase tracking-widest text-[#fbbf24]">YELELE DIGIT MARK SARL</h3>
+                            <div className="flex flex-col gap-0.5">
+                                <p className="text-xs text-teal-100/90 font-medium">NUI : M032118534812X</p>
+                                <p className="text-xs text-teal-100/90 font-medium">RCCM : RC/DLA/2021/B/1417</p>
+                            </div>
+                            <div className="pt-2 flex flex-col gap-1">
+                                <p className="text-sm flex items-center gap-2">
+                                    <span className="bg-[#f59e0b] text-[#0f766e] rounded-full p-0.5 text-[10px]">📞</span>
+                                    <span className="font-bold">+237 652 15 76 57</span>
+                                </p>
+                                <p className="text-sm flex items-center gap-2">
+                                    <span className="bg-[#f59e0b] text-[#0f766e] rounded-full p-0.5 text-[10px]">✉️</span>
+                                    yeleledigitmark@yahoo.fr
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <h4 className="font-bold text-[#f59e0b] uppercase text-xs tracking-widest mb-2 border-b border-teal-500 pb-1 w-full">Détails Bancaires</h4>
+                            <div className="grid grid-cols-[90px_1fr] gap-y-1 gap-x-2 text-sm">
+                                <span className="text-teal-200 text-xs">Intitulé :</span>
+                                <span className="font-bold text-white tracking-wide text-xs">YELELE DIGIT MARK SARL</span>
+
+                                <span className="text-teal-200 text-xs">N° Compte :</span>
+                                <span className="font-bold text-[#f59e0b] text-base tracking-wider">00271578301</span>
+
+                                <span className="text-teal-200 text-xs">Code guichet :</span>
+                                <span className="font-mono bg-white/10 px-1.5 rounded text-white text-xs w-fit">10035</span>
+
+                                <span className="text-teal-200 text-xs">Code banque :</span>
+                                <span className="font-mono bg-white/10 px-1.5 rounded text-white text-xs w-fit">10039</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="text-center text-[10px] text-teal-200/60 pt-2 border-t border-teal-600/50 uppercase tracking-widest">
+                        Cookies by Yelele
+                    </div>
                 </div>
             </div>
 
