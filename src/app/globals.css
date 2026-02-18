@@ -70,3 +70,19 @@ body {
     transform: translateX(0) !important;
   }
 }
+
+/* 
+   FIX: Force SVG visibility globally 
+   User reported "hidden=true" class on Windows/PC hiding all icons.
+   This overrides default hidden behavior for Lucide icons.
+*/
+svg.lucide {
+  display: inline-block !important;
+}
+svg.lucide.hidden {
+  display: inline-block !important;
+}
+[hidden] {
+  display: none !important;
+}
+/* Exception: If we really want to hide an icon, we can use 'force-hidden' or similar, but for now we fix the bug */
