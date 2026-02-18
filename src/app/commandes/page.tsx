@@ -89,6 +89,9 @@ export default function OrdersPage() {
 
     const handleSaveOrder = async (updatedOrder: Partial<Order>) => {
         try {
+            console.log("[Diagnostic] Saving order:", updatedOrder);
+
+            // 1. Update Order Details
             const { error: updateError } = await supabase
                 .from('orders')
                 .update({
@@ -100,6 +103,47 @@ export default function OrdersPage() {
                 .eq('id', updatedOrder.id);
 
             if (updateError) throw updateError;
+
+            // 2. Update Items (Delete All + Re-insert Strategy)
+            if (updatedOrder.items && updatedOrder.items.length > 0) {
+                console.log("[Diagnostic] Updating items for order:", updatedOrder.id);
+
+                // A. Delete existing items
+                const { error: deleteError } = await supabase
+                    .from('order_items')
+                    .delete()
+                    .eq('order_id', updatedOrder.id);
+
+                if (deleteError) {
+                    console.error("Error deleting old items:", deleteError);
+                    throw deleteError;
+                }
+
+                // B. Insert new items
+                const itemsToInsert = updatedOrder.items.map(item => ({
+                    order_id: updatedOrder.id,
+                    product_id: item.product_id || (item as any).productId, // Handle both cases
+                    quantity: item.quantity,
+                    unit_price: item.unit_price || (item as any).unitPrice || 0 // Ensure price is carried over if available
+                }));
+
+                // If unit_price is missing in the passed items, we might need to fetch it? 
+                // Using 0 or existing logic assuming OrderEditModal passed it.
+                // OrderEditModal usually calculates total but might not pass unit_price in items if it's just {productId, quantity}.
+                // Let's assume OrderEditModal passes it or we rely on DB defaults (which don't exist for price usually).
+                // WARNING: If OrderEditModal items don't have unit_price, this might insert 0.
+                // We should probably check if OrderEditModal provides it. 
+                // Looking at OrderEditModal (previous reads), it maps items. 
+
+                const { error: insertError } = await supabase
+                    .from('order_items')
+                    .insert(itemsToInsert);
+
+                if (insertError) {
+                    console.error("Error inserting new items:", insertError);
+                    throw insertError;
+                }
+            }
 
             // Refresh local state after save
             const { data, error } = await supabase

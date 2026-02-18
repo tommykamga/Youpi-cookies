@@ -39,18 +39,38 @@ export default function OrderEditModal({ isOpen, onClose, order, onSave, onDelet
     // Initialize form when order changes
     useEffect(() => {
         if (order) {
+            console.log("[OrderEditModal] Initializing with order:", order);
             setFormData(order);
-            // Map existing items or default to empty
-            if (order.items) {
-                setItems(order.items.map(item => ({
-                    productId: item.product_id,
-                    quantity: item.quantity
-                })));
-            } else {
-                setItems([]);
-            }
+
+            // Fetch items explicitly for this order
+            const fetchItems = async () => {
+                if (!order.id) return;
+
+                const { data, error } = await supabase
+                    .from('order_items')
+                    .select('*')
+                    .eq('order_id', order.id);
+
+                if (error) {
+                    console.error("[OrderEditModal] Error fetching items:", error);
+                    return;
+                }
+
+                if (data && data.length > 0) {
+                    console.log("[OrderEditModal] Fetched items:", data);
+                    setItems(data.map((item: any) => ({
+                        productId: item.product_id,
+                        quantity: item.quantity
+                    })));
+                } else {
+                    console.log("[OrderEditModal] No items found in DB.");
+                    setItems([]);
+                }
+            };
+
+            fetchItems();
         }
-    }, [order]);
+    }, [order, supabase]);
 
     const handleChange = (field: keyof Order, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }));
