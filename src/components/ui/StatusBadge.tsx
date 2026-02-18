@@ -10,6 +10,10 @@ const statusStyles: Record<string, string> = {
     invoiced: "bg-purple-100 text-purple-700",
     advance: "bg-orange-100 text-orange-700",
     paid: "bg-teal-100 text-teal-700",
+    unpaid: "bg-red-100 text-red-700",
+    draft: "bg-gray-200 text-gray-600",
+    cancelled: "bg-red-50 text-red-400",
+    overdue: "bg-red-200 text-red-800",
     active: "bg-green-100 text-green-700",
     inactive: "bg-red-100 text-red-700",
 };
@@ -22,6 +26,10 @@ const statusLabels: Record<string, string> = {
     invoiced: "Facturée",
     advance: "Avance",
     paid: "Payée",
+    unpaid: "Impayée",
+    draft: "Brouillon",
+    cancelled: "Annulée",
+    overdue: "En retard",
     active: "Actif",
     inactive: "Inactif",
 };

@@ -2,48 +2,57 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Search, Filter, FileText, Download, Printer, Loader2, ArrowRight } from "lucide-react";
+import { Search, Filter, FileText, Download, Printer, Loader2, ArrowRight, PlusCircle } from "lucide-react";
 import StatusBadge from "@/components/ui/StatusBadge";
-import { Order } from "@/types";
+import { Invoice } from "@/types";
 import { createClient } from "@/lib/supabase";
-
 
 export default function InvoicesPage() {
     const [searchTerm, setSearchTerm] = useState("");
-    const [invoices, setInvoices] = useState<Order[]>([]);
+    const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [loading, setLoading] = useState(true);
     const supabase = createClient();
 
+    const fetchInvoices = async () => {
+        try {
+            setLoading(true);
+            const { data, error } = await supabase
+                .from('invoices')
+                .select(`
+                    *,
+                    order:orders (
+                        id,
+                        total_amount,
+                        status,
+                        customer:customers (
+                            id,
+                            name,
+                            email
+                        )
+                    )
+                `)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            setInvoices(data as unknown as Invoice[]);
+        } catch (err) {
+            console.error("Error fetching invoices:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const fetchInvoices = async () => {
-            try {
-                // Fetch orders that are considered "invoices" (e.g., delivered, invoiced, paid)
-                // We use a left join on customers to ensure valid syntax.
-                const { data, error } = await supabase
-                    .from('orders')
-                    .select('*, customer:customers(*)')
-                    .in('status', ['delivered', 'invoiced', 'paid', 'advance'])
-                    .order('created_at', { ascending: false });
-
-                if (error) throw error;
-                setInvoices(data || []);
-            } catch (err) {
-                console.error("Error fetching invoices:", err);
-                setInvoices([]);
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchInvoices();
     }, []);
 
     const filteredInvoices = invoices.filter(invoice =>
         invoice.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (invoice.customer?.name || "").toLowerCase().includes(searchTerm.toLowerCase())
+        (invoice.order?.customer?.name || "").toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    if (loading) {
+    if (loading && invoices.length === 0) {
         return (
             <div className="flex justify-center items-center h-64">
                 <Loader2 className="h-8 w-8 animate-spin text-[var(--cookie-brown)]" />
@@ -56,11 +65,11 @@ export default function InvoicesPage() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <h1 className="text-2xl font-bold text-[var(--cookie-brown)]">Facturation</h1>
                 <div className="flex gap-2">
-                    {/* Placeholder for export/print all */}
                     <button className="btn-secondary flex items-center gap-2">
                         <Download className="h-4 w-4" />
                         Exporter
                     </button>
+                    {/* Auto-generation is handled by DB triggers */}
                 </div>
             </div>
 
@@ -90,10 +99,11 @@ export default function InvoicesPage() {
                     <table className="w-full text-sm text-left">
                         <thead className="bg-gray-50 text-gray-500 border-b border-gray-100">
                             <tr>
-                                <th className="px-6 py-4 font-medium">N° Facture (Commande)</th>
+                                <th className="px-6 py-4 font-medium">N° Facture</th>
+                                <th className="px-6 py-4 font-medium">Commande</th>
                                 <th className="px-6 py-4 font-medium">Client</th>
                                 <th className="px-6 py-4 font-medium">Date</th>
-                                <th className="px-6 py-4 font-medium">Montant</th>
+                                <th className="px-6 py-4 font-medium">Montant TTC</th>
                                 <th className="px-6 py-4 font-medium">Statut</th>
                                 <th className="px-6 py-4 font-medium text-center">Actions</th>
                             </tr>
@@ -103,10 +113,13 @@ export default function InvoicesPage() {
                                 filteredInvoices.map((invoice) => (
                                     <tr key={invoice.id} className="hover:bg-gray-50 group transition-colors">
                                         <td className="px-6 py-4 font-bold text-[var(--cookie-brown)]">
-                                            #{invoice.id.substring(0, 8).toUpperCase()}
+                                            #{invoice.id}
+                                        </td>
+                                        <td className="px-6 py-4 text-gray-600">
+                                            {invoice.order?.id || "N/A"}
                                         </td>
                                         <td className="px-6 py-4 font-medium">
-                                            {invoice.customer?.name || "Client Inconnu"}
+                                            {invoice.order?.customer?.name || "Client Inconnu"}
                                         </td>
                                         <td className="px-6 py-4 text-gray-500">
                                             {new Date(invoice.created_at).toLocaleDateString('fr-FR')}
@@ -125,7 +138,7 @@ export default function InvoicesPage() {
                                                 <button className="p-1.5 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-900" title="Imprimer">
                                                     <Printer className="h-4 w-4" />
                                                 </button>
-                                                <Link href={`/commandes/${invoice.id}`} className="p-1.5 hover:bg-gray-100 rounded text-gray-500 hover:text-[var(--cookie-brown)]" title="Voir Détails">
+                                                <Link href={`/commandes/${invoice.order_id}`} className="p-1.5 hover:bg-gray-100 rounded text-gray-500 hover:text-[var(--cookie-brown)]" title="Voir Commande">
                                                     <ArrowRight className="h-4 w-4" />
                                                 </Link>
                                             </div>
@@ -134,8 +147,11 @@ export default function InvoicesPage() {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                                        Aucune facture trouvée.
+                                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                                        <div className="flex flex-col items-center gap-3">
+                                            <p>Aucune facture trouvée.</p>
+                                            <p className="text-sm text-gray-400">Les factures sont générées automatiquement lors de la création des commandes.</p>
+                                        </div>
                                     </td>
                                 </tr>
                             )}

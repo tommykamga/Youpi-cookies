@@ -82,7 +82,19 @@ export type Customer = {
     last_order_date?: string;
 };
 
-export type OrderStatus = 'new' | 'preparing' | 'ready' | 'delivered' | 'invoiced' | 'advance' | 'paid';
+export type OrderStatus =
+    | 'new'
+    | 'preparing'
+    | 'ready'
+    | 'delivered'
+    | 'completed'
+    | 'cancelled'
+    | 'paid'
+    | 'unpaid'
+    | 'draft'
+    | 'overdue'
+    | 'invoiced'
+    | 'advance';
 
 export type Order = {
     id: string;
@@ -138,4 +150,16 @@ export type DeliveryCost = {
     order_id?: string;
     notes?: string;
     created_at?: string;
+};
+
+export type Invoice = {
+    id: string;
+    created_at: string;
+    order_id: string;
+    order?: Order;
+    customer?: Customer;
+    total_amount: number;
+    status: OrderStatus; // Synced with Order Status
+    payment_date?: string;
+    due_date?: string;
 };
