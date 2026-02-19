@@ -8,6 +8,7 @@ import { Order } from "@/types";
 import OrderEditModal from "@/components/orders/OrderEditModal";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatPrice } from "@/config/currency";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 import { createClient } from "@/lib/supabase";
 
@@ -15,6 +16,7 @@ export default function OrdersPage() {
     const [orders, setOrders] = useState<Partial<Order>[]>([]);
     const [selectedOrder, setSelectedOrder] = useState<Partial<Order> | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const supabase = createClient();
 
@@ -166,12 +168,20 @@ export default function OrdersPage() {
             console.log(`[Diagnostic] Attempting to delete order: ${orderId}`);
 
             // Database TRIGGER (ON DELETE CASCADE) will auto-delete the invoice.
-            const { error } = await supabase
+            const { error, data } = await supabase
                 .from('orders')
                 .delete()
-                .eq('id', orderId);
+                .eq('id', orderId)
+                .select(); // IMPORTANT: .select() combined with RLS means it will only return data if it actually deleted!
 
             if (error) throw error;
+
+            // Log success to DB logic trace
+            await supabase.from('tasks').insert({
+                title: 'TRACE_DELETE_SUCCESS',
+                description: `Order ${orderId} deleted successfully. Returned: ${JSON.stringify(data)}`,
+                status: 'todo'
+            });
 
             console.log(`[Diagnostic] Successfully deleted order: ${orderId}`);
 
@@ -185,19 +195,72 @@ export default function OrdersPage() {
 
         } catch (err: any) {
             console.error("[Diagnostic] Error deleting order:", err);
-            alert(`Erreur lors de la suppression: ${err.message}`);
+
+            // Log error to DB
+            await supabase.from('tasks').insert({
+                title: 'ERR_LOG_DELETE_GUI',
+                description: `Code: ${err?.code} | Msg: ${err?.message} | Dtl: ${err?.details}`,
+                status: 'todo'
+            });
+
+            alert(`Erreur lors de la suppression:\nCode: ${err?.code || 'Inconnu'}\nMessage: ${err?.message || 'Erreur interne'}\nDétails: ${err?.details || ''}`);
         }
     };
 
-    const handleDuplicate = (order: Partial<Order>) => {
-        const newOrder = {
-            ...order,
-            id: `CMD-${Math.floor(Math.random() * 1000)}`, // New ID
-            status: 'new' as const,
-            created_at: new Date().toISOString().split('T')[0]
-        };
-        setOrders([newOrder, ...orders]);
-        alert(`Commande dupliquée: ${newOrder.id}`);
+    const handleDuplicate = async (order: Partial<Order>) => {
+        try {
+            const newOrderId = `CMD-${Math.floor(Math.random() * 10000)}`; // More randomness
+
+            // 1. Fetch current items to duplicate
+            const { data: originalItems } = await supabase
+                .from('order_items')
+                .select('*')
+                .eq('order_id', order.id);
+
+            // 2. Insert new order
+            const { error: insertOrderError } = await supabase
+                .from('orders')
+                .insert({
+                    id: newOrderId,
+                    customer_id: order.customer_id,
+                    status: 'new', // Reset status logically
+                    total_amount: order.total_amount,
+                    notes: order.notes,
+                    delivery_date: order.delivery_date
+                });
+
+            if (insertOrderError) throw insertOrderError;
+
+            // 3. Insert new items if any
+            if (originalItems && originalItems.length > 0) {
+                const itemsToInsert = originalItems.map(item => ({
+                    order_id: newOrderId,
+                    product_id: item.product_id,
+                    quantity: item.quantity,
+                    unit_price: item.unit_price
+                }));
+                const { error: insertItemsError } = await supabase
+                    .from('order_items')
+                    .insert(itemsToInsert);
+
+                if (insertItemsError) throw insertItemsError;
+            }
+
+            // 4. Refresh local state
+            const { data, error } = await supabase
+                .from('orders')
+                .select('*, customer:customers(*)')
+                .order('created_at', { ascending: false });
+
+            if (!error && data) {
+                setOrders(data);
+                alert(`Commande dupliquée: ${newOrderId}`);
+            }
+
+        } catch (err: any) {
+            console.error("Error duplicating order:", err);
+            alert(`Erreur lors de la duplication: ${err.message}`);
+        }
     };
 
     return (
@@ -401,18 +464,23 @@ export default function OrdersPage() {
                                                         <FileText className="h-4 w-4" />
                                                     </Link>
                                                     <button
-                                                        onClick={(e) => { e.stopPropagation(); handleDuplicate(order); }}
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            handleDuplicate(order);
+                                                        }}
                                                         className="p-1.5 hover:bg-gray-100 rounded text-gray-500 hover:text-[var(--cookie-accent)]"
                                                         title="Dupliquer"
                                                     >
                                                         <Copy className="h-4 w-4" />
                                                     </button>
                                                     <button
+                                                        type="button"
                                                         onClick={(e) => {
+                                                            e.preventDefault();
                                                             e.stopPropagation();
-                                                            if (window.confirm("Êtes-vous sûr de vouloir supprimer cette commande ?")) {
-                                                                handleDeleteOrder(order.id!);
-                                                            }
+                                                            setOrderToDelete(order.id!);
                                                         }}
                                                         className="p-1.5 hover:bg-gray-100 rounded text-gray-500 hover:text-red-600"
                                                         title="Supprimer"
@@ -464,6 +532,17 @@ export default function OrdersPage() {
             <div className="text-xs text-center text-gray-400 sm:hidden">
                 Swipe gauche pour éditer • Swipe droite pour dupliquer
             </div>
+
+            <ConfirmModal
+                isOpen={!!orderToDelete}
+                title="Supprimer la commande"
+                message={`Êtes-vous sûr de vouloir supprimer la commande ${orderToDelete} ? Cette action est irréversible.`}
+                onConfirm={() => {
+                    if (orderToDelete) handleDeleteOrder(orderToDelete);
+                    setOrderToDelete(null);
+                }}
+                onCancel={() => setOrderToDelete(null)}
+            />
         </div>
     );
 }

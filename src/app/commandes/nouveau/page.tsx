@@ -28,7 +28,7 @@ export default function NewOrderPage() {
                 supabase.from('products').select('*').order('name'),
                 supabase.from('customers').select('*').order('name')
             ]);
-            
+
             if (prodRes.data) setProducts(prodRes.data);
             if (custRes.data) setCustomers(custRes.data);
         };
@@ -51,7 +51,7 @@ export default function NewOrderPage() {
     };
 
     const updateQuantity = (id: string, qty: number) => {
-        if (qty < 1) return;
+        if (isNaN(qty) || qty < 0) return;
         setItems(items.map(i => i.productId === id ? { ...i, quantity: qty } : i));
     };
 
@@ -136,7 +136,7 @@ export default function NewOrderPage() {
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
-                                <select 
+                                <select
                                     className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[var(--cookie-brown)] focus:outline-none"
                                     value={selectedCustomer}
                                     onChange={(e) => setSelectedCustomer(e.target.value)}
@@ -150,17 +150,17 @@ export default function NewOrderPage() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Date de livraison</label>
-                                    <input 
-                                        type="date" 
-                                        className="w-full p-2 border border-gray-200 rounded-lg" 
+                                    <input
+                                        type="date"
+                                        className="w-full p-2 border border-gray-200 rounded-lg"
                                         value={deliveryDate}
                                         onChange={(e) => setDeliveryDate(e.target.value)}
                                     />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                                    <select 
-                                        className="w-full p-2 border border-gray-200 rounded-lg" 
+                                    <select
+                                        className="w-full p-2 border border-gray-200 rounded-lg"
                                         value={status}
                                         onChange={(e) => setStatus(e.target.value)}
                                     >
@@ -212,12 +212,12 @@ export default function NewOrderPage() {
                                                 <input
                                                     type="number"
                                                     min="1"
-                                                    value={item.quantity}
-                                                    onChange={(e) => updateQuantity(item.productId, parseInt(e.target.value))}
+                                                    value={item.quantity || ""}
+                                                    onChange={(e) => updateQuantity(item.productId, parseInt(e.target.value) || 0)}
                                                     className="w-16 p-1 border border-gray-200 rounded text-center"
                                                 />
                                                 <span className="font-bold w-20 text-right">
-                                                    {formatPrice((product!.price * item.quantity))}
+                                                    {formatPrice((product?.price || 0) * (item.quantity || 0))}
                                                 </span>
                                                 <button
                                                     onClick={() => removeItem(item.productId)}
@@ -255,7 +255,7 @@ export default function NewOrderPage() {
                             </div>
                         </div>
 
-                        <button 
+                        <button
                             onClick={handleSave}
                             disabled={isSaving}
                             className="w-full mt-6 btn-primary flex justify-center items-center gap-2 py-3 disabled:opacity-50"

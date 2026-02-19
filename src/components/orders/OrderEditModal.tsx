@@ -4,6 +4,7 @@ import { X, Plus, Trash2, Save, FileText, Loader2, Pencil } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Order, Product } from "@/types";
 import { formatPrice } from "@/config/currency";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 import { createClient } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -26,6 +27,7 @@ export default function OrderEditModal({ isOpen, onClose, order, onSave, onDelet
     const [items, setItems] = useState<OrderItemInput[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [selectedProduct, setSelectedProduct] = useState("");
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     // Fetch Products for the dropdown
     useEffect(() => {
@@ -92,7 +94,7 @@ export default function OrderEditModal({ isOpen, onClose, order, onSave, onDelet
     };
 
     const updateQuantity = (id: string, qty: number) => {
-        if (qty < 1) return;
+        if (isNaN(qty) || qty < 0) return;
         setItems(items.map(i => i.productId === id ? { ...i, quantity: qty } : i));
     };
 
@@ -127,210 +129,258 @@ export default function OrderEditModal({ isOpen, onClose, order, onSave, onDelet
     if (!isOpen || !order) return null;
 
     return (
-        <AnimatePresence>
-            {isOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-                    {/* Backdrop */}
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={onClose}
-                        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                    />
+        <>
+            <AnimatePresence>
+                {isOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+                        {/* Backdrop */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={onClose}
+                            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                        />
 
-                    {/* Modal Content */}
-                    <motion.div
-                        initial={{ scale: 0.95, opacity: 0, y: 20 }}
-                        animate={{ scale: 1, opacity: 1, y: 0 }}
-                        exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                        className="relative bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto flex flex-col"
-                    >
-                        {/* Header */}
-                        <div className="flex items-center justify-between p-6 border-b border-gray-100 sticky top-0 bg-white z-10">
-                            <div>
-                                <h2 className="text-xl font-bold text-gray-900">Modifier Commande</h2>
-                                <p className="text-sm text-gray-500">#{formData.id}</p>
+                        {/* Modal Content */}
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                            className="relative bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto flex flex-col"
+                        >
+                            {/* Header */}
+                            <div className="flex items-center justify-between p-6 border-b border-gray-100 sticky top-0 bg-white z-10">
+                                <div>
+                                    <h2 className="text-xl font-bold text-gray-900">Modifier Commande</h2>
+                                    <p className="text-sm text-gray-500">#{formData.id}</p>
+                                </div>
+                                <button
+                                    onClick={onClose}
+                                    className="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"
+                                >
+                                    <X className="h-5 w-5" />
+                                </button>
                             </div>
-                            <button
-                                onClick={onClose}
-                                className="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"
-                            >
-                                <X className="h-5 w-5" />
-                            </button>
-                        </div>
 
-                        {/* Body */}
-                        <div className="p-6 space-y-8">
-                            {/* Top Row: Client & Status */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-4">
-                                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Client</label>
-                                        <div className="font-medium text-gray-900 text-lg">
-                                            {formData.customer?.company_name || formData.customer?.name || "Client Inconnu"}
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Date Création</label>
-                                            <div className="p-2 bg-gray-50 border border-gray-100 rounded-lg text-gray-500 text-sm">
-                                                {formData.created_at ? new Date(formData.created_at).toLocaleDateString('fr-FR') : '-'}
+                            {/* Body */}
+                            <div className="p-6 space-y-8">
+                                {/* Top Row: Client & Status */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-4">
+                                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Client</label>
+                                            <div className="font-medium text-gray-900 text-lg">
+                                                {formData.customer?.company_name || formData.customer?.name || "Client Inconnu"}
                                             </div>
                                         </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Date Création</label>
+                                                <div className="p-2 bg-gray-50 border border-gray-100 rounded-lg text-gray-500 text-sm">
+                                                    {formData.created_at ? new Date(formData.created_at).toLocaleDateString('fr-FR') : '-'}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Date Livraison</label>
+                                                <input
+                                                    type="date"
+                                                    value={formData.delivery_date ? new Date(formData.delivery_date).toISOString().split('T')[0] : ""}
+                                                    onChange={(e) => handleChange("delivery_date", e.target.value)}
+                                                    className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[var(--cookie-brown)] focus:outline-none"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Date Livraison</label>
-                                            <input
-                                                type="date"
-                                                value={formData.delivery_date ? new Date(formData.delivery_date).toISOString().split('T')[0] : ""}
-                                                onChange={(e) => handleChange("delivery_date", e.target.value)}
-                                                className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[var(--cookie-brown)] focus:outline-none"
-                                            />
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Statut</label>
+                                            <select
+                                                value={formData.status}
+                                                onChange={(e) => handleChange("status", e.target.value)}
+                                                className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[var(--cookie-brown)]"
+                                            >
+                                                <option value="new">Nouvelle</option>
+                                                <option value="preparing">En préparation</option>
+                                                <option value="ready">Prête</option>
+                                                <option value="delivered">Livrée</option>
+                                                <option value="invoiced">Facturée</option>
+                                                <option value="paid">Payée</option>
+                                                <option value="advance">Avance payée</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                                            <textarea
+                                                className="w-full p-2 border border-gray-200 rounded-lg text-sm h-20 resize-none focus:ring-2 focus:ring-[var(--cookie-brown)] focus:outline-none"
+                                                placeholder="Notes internes..."
+                                                value={formData.notes || ""}
+                                                onChange={(e) => handleChange("notes", e.target.value)}
+                                            ></textarea>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Statut</label>
-                                        <select
-                                            value={formData.status}
-                                            onChange={(e) => handleChange("status", e.target.value)}
-                                            className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[var(--cookie-brown)]"
-                                        >
-                                            <option value="new">Nouvelle</option>
-                                            <option value="preparing">En préparation</option>
-                                            <option value="ready">Prête</option>
-                                            <option value="delivered">Livrée</option>
-                                            <option value="invoiced">Facturée</option>
-                                            <option value="paid">Payée</option>
-                                            <option value="advance">Avance payée</option>
-                                        </select>
+                                {/* Products Section */}
+                                <div>
+                                    <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                        Produits & Quantités
+                                        <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{items.length} articles</span>
+                                    </h3>
+
+                                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-4">
+                                        <div className="flex gap-2">
+                                            <select
+                                                className="flex-1 p-2 border border-gray-200 rounded-lg text-sm"
+                                                value={selectedProduct}
+                                                onChange={(e) => setSelectedProduct(e.target.value)}
+                                            >
+                                                <option value="">Ajouter un produit...</option>
+                                                {products.map(p => (
+                                                    <option key={p.id} value={p.id}>{p.name} - {formatPrice(p.price)}</option>
+                                                ))}
+                                            </select>
+                                            <button
+                                                type="button"
+                                                onClick={addItem}
+                                                className="btn-primary flex items-center justify-center p-2 rounded-lg"
+                                            >
+                                                <Plus className="h-5 w-5" />
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                                        <textarea
-                                            className="w-full p-2 border border-gray-200 rounded-lg text-sm h-20 resize-none focus:ring-2 focus:ring-[var(--cookie-brown)] focus:outline-none"
-                                            placeholder="Notes internes..."
-                                            value={formData.notes || ""}
-                                            onChange={(e) => handleChange("notes", e.target.value)}
-                                        ></textarea>
+
+                                    <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                                        <AnimatePresence>
+                                            {items.map(item => {
+                                                const product = products.find(p => p.id === item.productId);
+                                                if (!product) return null;
+                                                return (
+                                                    <motion.div
+                                                        key={item.productId}
+                                                        initial={{ opacity: 0, y: -10 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        exit={{ opacity: 0, scale: 0.95 }}
+                                                        className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-[var(--cookie-brown)] transition-colors group"
+                                                    >
+                                                        <div className="flex-1">
+                                                            <div className="font-medium text-gray-800">{product.name}</div>
+                                                            <div className="text-sm text-[var(--cookie-brown)]">{formatPrice(product.price)} / unité</div>
+                                                        </div>
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="flex items-center bg-gray-50 rounded-lg border border-gray-200 p-1">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                                                                    className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-200 rounded transition-colors"
+                                                                >
+                                                                    -
+                                                                </button>
+                                                                <input
+                                                                    type="number"
+                                                                    min="1"
+                                                                    value={item.quantity === 0 ? "" : item.quantity.toString()}
+                                                                    onChange={(e) => updateQuantity(item.productId, parseInt(e.target.value) || 0)}
+                                                                    className="w-12 text-center bg-transparent border-none focus:ring-0 font-medium text-gray-900"
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                                                                    className="w-8 h-8 flex items-center justify-center text-[var(--cookie-brown)] hover:bg-[var(--cookie-brown)] hover:text-white rounded transition-colors"
+                                                                >
+                                                                    +
+                                                                </button>
+                                                            </div>
+                                                            <div className="w-24 text-right font-bold text-gray-900">
+                                                                {formatPrice(product.price * item.quantity)}
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeItem(item.productId)}
+                                                                className="text-gray-400 hover:text-red-500 p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </button>
+                                                        </div>
+                                                    </motion.div>
+                                                );
+                                            })}
+                                        </AnimatePresence>
+                                        {items.length === 0 && (
+                                            <div className="text-center p-8 border-2 border-dashed border-gray-200 rounded-xl text-gray-500 flex flex-col items-center gap-2">
+                                                <div className="h-12 w-12 bg-gray-50 rounded-full flex items-center justify-center">
+                                                    <Plus className="h-6 w-6 text-gray-400" />
+                                                </div>
+                                                <p>Aucun produit ajouté</p>
+                                                <p className="text-xs text-gray-400">Sélectionnez un produit ci-dessus pour commencer</p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
-                            </div>
 
-                            {/* Products Section */}
-                            <div>
-                                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                    Produits & Quantités
-                                    <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{items.length} articles</span>
-                                </h3>
+                                {/* Footer Actions */}
+                                <div className="p-6 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-50 mt-auto rounded-b-2xl">
+                                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                                        <span className="text-gray-600 font-medium">Total:</span>
+                                        <span className="text-xl font-bold text-[var(--cookie-brown)]">
+                                            {formatPrice(calculateTotal())}
+                                        </span>
+                                    </div>
 
-                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-4">
-                                    <div className="flex gap-2">
-                                        <select
-                                            className="flex-1 p-2 border border-gray-200 rounded-lg text-sm"
-                                            value={selectedProduct}
-                                            onChange={(e) => setSelectedProduct(e.target.value)}
-                                        >
-                                            <option value="">Ajouter un produit...</option>
-                                            {products.map(p => (
-                                                <option key={p.id} value={p.id}>{p.name} - {formatPrice(p.price)}</option>
-                                            ))}
-                                        </select>
+                                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                                        <button type="button" className="p-2 text-gray-500 hover:text-gray-900 hover:bg-white rounded-lg border border-transparent hover:border-gray-200 transition-all" title="Générer PDF">
+                                            <FileText className="h-5 w-5" />
+                                        </button>
+                                        {onDelete && order && (
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    setShowDeleteConfirm(true);
+                                                }}
+                                                className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-all"
+                                                title="Supprimer la commande"
+                                            >
+                                                <Trash2 className="h-5 w-5" />
+                                            </button>
+                                        )}
                                         <button
-                                            onClick={addItem}
-                                            className="btn-primary flex items-center justify-center p-2 rounded-lg"
+                                            type="button"
+                                            onClick={onClose}
+                                            className="px-4 py-2 text-gray-600 hover:text-gray-900 font-medium"
                                         >
-                                            <Plus className="h-5 w-5" />
+                                            Annuler
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleSave}
+                                            className="btn-primary flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2 shadow-lg hover:shadow-xl transform transition-all hover:-translate-y-0.5"
+                                        >
+                                            <Save className="h-4 w-4" />
+                                            Sauvegarder
                                         </button>
                                     </div>
                                 </div>
-
-                                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                                    {items.length === 0 && (
-                                        <div className="text-center py-8 text-gray-400 text-sm">Aucun produit dans cette commande.</div>
-                                    )}
-                                    {items.map(item => {
-                                        const product = products.find(p => p.id === item.productId);
-                                        return (
-                                            <div key={item.productId} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg shadow-sm">
-                                                <div className="flex-1">
-                                                    <p className="font-medium text-gray-900 text-sm">{product?.name}</p>
-                                                    <p className="text-xs text-gray-500">{formatPrice(product?.price)}</p>
-                                                </div>
-                                                <div className="flex items-center gap-3">
-                                                    <input
-                                                        type="number"
-                                                        min="1"
-                                                        value={item.quantity}
-                                                        onChange={(e) => updateQuantity(item.productId, parseInt(e.target.value))}
-                                                        className="w-16 p-1 border border-gray-200 rounded text-center text-sm"
-                                                    />
-                                                    <div className="text-right w-20">
-                                                        <span className="font-bold text-sm">
-                                                            {formatPrice((product?.price || 0) * item.quantity)}
-                                                        </span>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => removeItem(item.productId)}
-                                                        className="text-gray-400 hover:text-red-500 p-1 transition-colors"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
                             </div>
-                        </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
 
-                        {/* Footer */}
-                        <div className="p-6 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-50 mt-auto rounded-b-2xl">
-                            <div className="flex items-center gap-2 w-full sm:w-auto">
-                                <span className="text-gray-600 font-medium">Total:</span>
-                                <span className="text-xl font-bold text-[var(--cookie-brown)]">
-                                    {formatPrice(calculateTotal())}
-                                </span>
-                            </div>
-
-                            <div className="flex items-center gap-3 w-full sm:w-auto">
-                                <button className="p-2 text-gray-500 hover:text-gray-900 hover:bg-white rounded-lg border border-transparent hover:border-gray-200 transition-all" title="Générer PDF">
-                                    <FileText className="h-5 w-5" />
-                                </button>
-                                {onDelete && order && (
-                                    <button
-                                        onClick={() => {
-                                            if (window.confirm("Êtes-vous sûr de vouloir supprimer cette commande ?")) {
-                                                onDelete(order.id!);
-                                                onClose();
-                                            }
-                                        }}
-                                        className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-all"
-                                        title="Supprimer la commande"
-                                    >
-                                        <Trash2 className="h-5 w-5" />
-                                    </button>
-                                )}
-                                <button
-                                    onClick={onClose}
-                                    className="px-4 py-2 text-gray-600 hover:text-gray-900 font-medium"
-                                >
-                                    Annuler
-                                </button>
-                                <button
-                                    onClick={handleSave}
-                                    className="btn-primary flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2 shadow-lg hover:shadow-xl transform transition-all hover:-translate-y-0.5"
-                                >
-                                    <Save className="h-4 w-4" />
-                                    Sauvegarder
-                                </button>
-                            </div>
-                        </div>
-                    </motion.div>
-                </div>
-            )}
-        </AnimatePresence>
+            <ConfirmModal
+                isOpen={showDeleteConfirm}
+                title="Supprimer la commande"
+                message="Êtes-vous sûr de vouloir supprimer cette commande ? Cette action est irréversible."
+                onConfirm={() => {
+                    if (onDelete && order?.id) {
+                        onDelete(order.id);
+                        onClose();
+                    }
+                }}
+                onCancel={() => setShowDeleteConfirm(false)}
+            />
+        </>
     );
 }

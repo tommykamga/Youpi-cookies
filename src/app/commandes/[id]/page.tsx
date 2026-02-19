@@ -13,30 +13,79 @@ export default function InvoiceDetailsPage({ params }: { params: Promise<{ id: s
     const resolvedParams = use(params);
     const [order, setOrder] = useState<Order | null>(null);
     const [loading, setLoading] = useState(true);
+    const [sending, setSending] = useState(false);
     const supabase = createClient();
 
-    useEffect(() => {
-        const fetchOrder = async () => {
-            try {
-                // Fetch order with customer and Items
-                const { data, error } = await supabase
-                    .from('orders')
-                    .select('*, customer:customers(*), items:order_items(*, product:products(*))')
-                    .eq('id', resolvedParams.id)
-                    .single();
+    // ... fetchOrder ...
 
-                if (error) throw error;
-                setOrder(data);
-            } catch (err) {
-                console.error("Error fetching order details:", err);
-                setOrder(null);
-            } finally {
-                setLoading(false);
-            }
-        };
+    const handleWhatsApp = async () => {
+        if (!order || !order.customer?.phone) {
+            alert("Numéro de téléphone client manquant.");
+            return;
+        }
 
-        fetchOrder();
-    }, [resolvedParams.id]);
+        setSending(true);
+        try {
+            // 1. Generate PDF
+            const html2canvas = (await import('html2canvas')).default;
+            const jsPDF = (await import('jspdf')).default;
+
+            const element = document.getElementById('invoice-content');
+            if (!element) throw new Error("Facture introuvable dans le DOM");
+
+            const canvas = await html2canvas(element, { scale: 2 });
+            const imgData = canvas.toDataURL('image/png');
+
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            const pdfBlob = pdf.output('blob');
+
+            // 2. Upload to Supabase
+            const fileName = `INV-${order.id}-${Date.now()}.pdf`;
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('invoices')
+                .upload(fileName, pdfBlob, {
+                    contentType: 'application/pdf',
+                    upsert: true
+                });
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('invoices')
+                .getPublicUrl(fileName);
+
+            // 3. Send via WhatsApp API
+            const response = await fetch('/api/whatsapp/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'invoice',
+                    phone: order.customer.phone,
+                    orderId: order.id,
+                    pdfUrl: publicUrl,
+                    customerName: order.customer.name || order.customer.company_name,
+                    invoiceId: order.id.replace('INV-', '')
+                })
+            });
+
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || "Erreur envoi WhatsApp");
+
+            alert("Facture envoyée sur WhatsApp !");
+
+        } catch (error: any) {
+            console.error("WhatsApp Error:", error);
+            alert(`Erreur: ${error.message}`);
+        } finally {
+            setSending(false);
+        }
+    };
+
+
 
     const handlePrint = () => {
         window.print();
@@ -81,6 +130,16 @@ export default function InvoiceDetailsPage({ params }: { params: Promise<{ id: s
                         <Printer className="h-4 w-4" />
                         Imprimer
                     </button>
+
+                    <button
+                        onClick={handleWhatsApp}
+                        disabled={sending}
+                        className="bg-[#25D366] hover:bg-[#128C7E] text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                    >
+                        {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Phone className="h-4 w-4" />}
+                        WhatsApp
+                    </button>
+
                     <div className="relative group">
                         <button className="btn-primary flex items-center gap-2">
                             <Download className="h-4 w-4" />
@@ -95,7 +154,7 @@ export default function InvoiceDetailsPage({ params }: { params: Promise<{ id: s
             </div>
 
             {/* Invoice Paper */}
-            <div className="bg-white p-8 md:p-12 rounded-xl shadow-sm border border-gray-100 print:shadow-none print:border-none print:p-0">
+            <div id="invoice-content" className="bg-white p-8 md:p-12 rounded-xl shadow-sm border border-gray-100 print:shadow-none print:border-none print:p-0">
                 {/* Invoice Header */}
                 <div className="flex justify-between items-start mb-12">
                     <div>
