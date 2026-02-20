@@ -31,56 +31,61 @@ export default function NewUserPage() {
 
         setIsSaving(true);
 
-        // 1. Create User in Supabase Auth (Client-side limitation: this signs in the user)
-        // ideally this should be a server action or use supabase-admin
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-                data: {
-                    full_name: fullName,
-                    role: role,
-                }
-            }
-        });
+        try {
+            // 1. Check if email already exists in the profiles table
+            const { data: existing } = await supabase
+                .from('profiles')
+                .select('id')
+                .eq('email', email.toLowerCase().trim())
+                .maybeSingle();
 
-        if (authError) {
-            console.error('Error creating auth user:', authError);
-            alert(`Erreur Auth: ${authError.message}`);
+            if (existing) {
+                alert("Cet email est déjà enregistré. Utilisez la récupération de mot de passe si nécessaire.");
+                setIsSaving(false);
+                return;
+            }
+
+            // 2. Create User in Supabase Auth
+            // The on_auth_user_created trigger auto-inserts into profiles table
+            const { data: authData, error: authError } = await supabase.auth.signUp({
+                email: email.toLowerCase().trim(),
+                password,
+                options: {
+                    data: {
+                        full_name: fullName,
+                        role: role,
+                    }
+                }
+            });
+
+            if (authError) {
+                console.error('Error creating auth user:', authError);
+                alert(`Erreur lors de la création du compte : ${authError.message}`);
+                setIsSaving(false);
+                return;
+            }
+
+            // 3. Detect Supabase fake-success (email exists but no error returned)
+            if (authData.user && authData.user.identities && authData.user.identities.length === 0) {
+                alert("Cet email est déjà enregistré. Utilisez la récupération de mot de passe si nécessaire.");
+                setIsSaving(false);
+                return;
+            }
+
+            if (authData.user) {
+                // Profile is auto-created by the DB trigger (on_auth_user_created)
+                // No manual insert needed
+                alert("Utilisateur créé avec succès !");
+                router.push("/utilisateurs");
+            } else {
+                alert("La création du compte a échoué. Veuillez réessayer.");
+            }
+        } catch (err: any) {
+            console.error('Unexpected error:', err);
+            alert(`Erreur inattendue : ${err.message}`);
+        } finally {
             setIsSaving(false);
-            return;
         }
-
-        if (authData.user) {
-            // 2. Insert into 'users' table (assuming it's separate from auth.users and we need to sync manually or via trigger)
-            // If there's a trigger, this might fail with duplicate key, so check implementation.
-            // For now, let's assume we need to insert manually if no trigger exists.
-
-            const { error: dbError } = await supabase
-                .from('users')
-                .insert({
-                    id: authData.user.id,
-                    email: email,
-                    full_name: fullName,
-                    role: role,
-                    // created_at is automatic
-                });
-
-            if (dbError) {
-                console.error('Error creating user profile:', dbError);
-                // If the error is duplicate key, it means a trigger handled it.
-                if (dbError.code !== '23505') {
-                    alert(`Erreur DB: ${dbError.message}`);
-                    setIsSaving(false);
-                    return;
-                }
-            }
-
-            alert("Utilisateur créé avec succès !");
-            router.push("/utilisateurs");
-        }
-
-        setIsSaving(false);
     };
 
     return (

@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Search, Filter, MoreHorizontal, Shield, Mail, Phone, Loader2, UserCheck, UserX } from "lucide-react";
+import { Plus, Search, Filter, MoreHorizontal, Shield, Mail, Phone, Loader2, UserCheck, UserX, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { User } from "@/types";
 import UserEditModal from "@/components/users/UserEditModal";
+import { deleteUser } from "@/app/actions/users";
 
 // Mock Users Data (Fallback)
 // Mock Users Data (Fallback)
@@ -22,6 +23,8 @@ export default function UsersPage() {
     const [loading, setLoading] = useState(true);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
     const supabase = createClient();
 
     useEffect(() => {
@@ -67,6 +70,11 @@ export default function UsersPage() {
         };
 
         fetchUsers();
+
+        // Get current user ID for self-deletion protection
+        supabase.auth.getUser().then(({ data }) => {
+            if (data.user) setCurrentUserId(data.user.id);
+        });
     }, []);
 
     const filteredUsers = users.filter(user =>
@@ -84,6 +92,32 @@ export default function UsersPage() {
 
     const handleSaveUser = (updatedUser: User) => {
         setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
+    };
+
+    const handleDeleteUser = async (user: User) => {
+        if (user.id === currentUserId) {
+            alert("Impossible de supprimer votre propre compte.");
+            return;
+        }
+
+        if (!confirm(`Supprimer définitivement ${user.full_name || user.email} ?\n\nCette action est irréversible.`)) {
+            return;
+        }
+
+        setDeletingId(user.id);
+        try {
+            const result = await deleteUser(user.id);
+            if (!result.success) {
+                alert(result.error || "Erreur lors de la suppression.");
+            } else {
+                setUsers(prev => prev.filter(u => u.id !== user.id));
+                alert("Utilisateur supprimé avec succès.");
+            }
+        } catch (err: any) {
+            alert(err.message || "Erreur inattendue.");
+        } finally {
+            setDeletingId(null);
+        }
     };
 
     return (
@@ -152,12 +186,22 @@ export default function UsersPage() {
                             </div>
                         </div>
 
-                        <button
-                            onClick={() => { setSelectedUser(user); setIsModalOpen(true); }}
-                            className="mt-6 text-sm text-[var(--cookie-brown)] hover:text-[var(--cookie-brown)]/80 font-medium border border-[var(--cookie-brown)]/20 hover:bg-[var(--cookie-brown)]/5 px-4 py-2 rounded-lg transition-colors w-full"
-                        >
-                            Gérer l'accès
-                        </button>
+                        <div className="flex gap-2 mt-6 w-full">
+                            <button
+                                onClick={() => { setSelectedUser(user); setIsModalOpen(true); }}
+                                className="flex-1 text-sm text-[var(--cookie-brown)] hover:text-[var(--cookie-brown)]/80 font-medium border border-[var(--cookie-brown)]/20 hover:bg-[var(--cookie-brown)]/5 px-4 py-2 rounded-lg transition-colors"
+                            >
+                                Gérer l'accès
+                            </button>
+                            <button
+                                onClick={() => handleDeleteUser(user)}
+                                disabled={user.id === currentUserId || deletingId === user.id}
+                                className="text-sm text-red-500 hover:text-white hover:bg-red-500 font-medium border border-red-200 px-3 py-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                title={user.id === currentUserId ? "Impossible de supprimer votre propre compte" : "Supprimer"}
+                            >
+                                {deletingId === user.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                            </button>
+                        </div>
                     </div>
                 ))}
             </div>

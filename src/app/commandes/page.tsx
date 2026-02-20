@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Search, Filter, Calendar, Loader2, Pencil, Copy, FileText, ChevronDown, Trash2 } from "lucide-react";
+import { Plus, Search, Filter, Calendar, Loader2, Pencil, FileText, ChevronDown, Trash2 } from "lucide-react";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { Order } from "@/types";
 import OrderEditModal from "@/components/orders/OrderEditModal";
@@ -207,61 +207,6 @@ export default function OrdersPage() {
         }
     };
 
-    const handleDuplicate = async (order: Partial<Order>) => {
-        try {
-            const newOrderId = `CMD-${Math.floor(Math.random() * 10000)}`; // More randomness
-
-            // 1. Fetch current items to duplicate
-            const { data: originalItems } = await supabase
-                .from('order_items')
-                .select('*')
-                .eq('order_id', order.id);
-
-            // 2. Insert new order
-            const { error: insertOrderError } = await supabase
-                .from('orders')
-                .insert({
-                    id: newOrderId,
-                    customer_id: order.customer_id,
-                    status: 'new', // Reset status logically
-                    total_amount: order.total_amount,
-                    notes: order.notes,
-                    delivery_date: order.delivery_date
-                });
-
-            if (insertOrderError) throw insertOrderError;
-
-            // 3. Insert new items if any
-            if (originalItems && originalItems.length > 0) {
-                const itemsToInsert = originalItems.map(item => ({
-                    order_id: newOrderId,
-                    product_id: item.product_id,
-                    quantity: item.quantity,
-                    unit_price: item.unit_price
-                }));
-                const { error: insertItemsError } = await supabase
-                    .from('order_items')
-                    .insert(itemsToInsert);
-
-                if (insertItemsError) throw insertItemsError;
-            }
-
-            // 4. Refresh local state
-            const { data, error } = await supabase
-                .from('orders')
-                .select('*, customer:customers(*)')
-                .order('created_at', { ascending: false });
-
-            if (!error && data) {
-                setOrders(data);
-                alert(`Commande dupliquée: ${newOrderId}`);
-            }
-
-        } catch (err: any) {
-            console.error("Error duplicating order:", err);
-            alert(`Erreur lors de la duplication: ${err.message}`);
-        }
-    };
 
     return (
         <div className="space-y-6">
@@ -419,8 +364,6 @@ export default function OrdersPage() {
                                             onDragEnd={(event, info) => {
                                                 if (info.offset.x < -100) {
                                                     handleRowClick(order); // Swipe Left -> Edit
-                                                } else if (info.offset.x > 100) {
-                                                    handleDuplicate(order); // Swipe Right -> Duplicate
                                                 }
                                             }}
                                             className="group transition-colors cursor-pointer relative"
@@ -463,18 +406,7 @@ export default function OrdersPage() {
                                                     >
                                                         <FileText className="h-4 w-4" />
                                                     </Link>
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.preventDefault();
-                                                            e.stopPropagation();
-                                                            handleDuplicate(order);
-                                                        }}
-                                                        className="p-1.5 hover:bg-gray-100 rounded text-gray-500 hover:text-[var(--cookie-accent)]"
-                                                        title="Dupliquer"
-                                                    >
-                                                        <Copy className="h-4 w-4" />
-                                                    </button>
+
                                                     <button
                                                         type="button"
                                                         onClick={(e) => {
@@ -530,7 +462,7 @@ export default function OrdersPage() {
             </div>
 
             <div className="text-xs text-center text-gray-400 sm:hidden">
-                Swipe gauche pour éditer • Swipe droite pour dupliquer
+                Swipe gauche pour éditer
             </div>
 
             <ConfirmModal

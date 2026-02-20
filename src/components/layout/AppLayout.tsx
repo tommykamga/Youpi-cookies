@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -30,6 +31,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [sidebarOpen]);
+
+    // Active account polling (checks every 60s if the user is still active)
+    useAuthGuard(60_000);
 
     // If login page, just return children without the layout
     if (isLoginPage) {

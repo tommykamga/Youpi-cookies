@@ -62,6 +62,19 @@ export default function NewOrderPage() {
         }, 0);
     };
 
+    // Stock warnings
+    const stockWarnings = useMemo(() => {
+        return items
+            .map(item => {
+                const product = products.find(p => p.id === item.productId);
+                if (product && item.quantity > product.stock) {
+                    return `${product.name} : qté demandée (${item.quantity}) > stock disponible (${product.stock})`;
+                }
+                return null;
+            })
+            .filter(Boolean) as string[];
+    }, [items, products]);
+
     const handleSave = async () => {
         if (!selectedCustomer) {
             alert("Veuillez sélectionner un client");
@@ -70,6 +83,14 @@ export default function NewOrderPage() {
         if (items.length === 0) {
             alert("Veuillez ajouter au moins un produit");
             return;
+        }
+
+        // Confirm if stock warnings exist
+        if (stockWarnings.length > 0) {
+            const ok = window.confirm(
+                "⚠️ Certaines quantités dépassent le stock disponible.\nVoulez-vous quand même valider la commande ?"
+            );
+            if (!ok) return;
         }
 
         setIsSaving(true);
@@ -233,6 +254,21 @@ export default function NewOrderPage() {
                         ) : (
                             <p className="text-sm text-gray-400 text-center py-4">Aucun produit ajouté</p>
                         )}
+
+                        {/* Stock warnings */}
+                        {stockWarnings.length > 0 && (
+                            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl space-y-1">
+                                {stockWarnings.map((w, i) => (
+                                    <p key={i} className="text-xs text-red-600 flex items-start gap-1">
+                                        <span className="shrink-0">⚠️</span>
+                                        <span>{w}</span>
+                                    </p>
+                                ))}
+                                <p className="text-[11px] text-red-400 italic mt-1">
+                                    Cette alerte n'empêche pas la création de la commande.
+                                </p>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -254,6 +290,15 @@ export default function NewOrderPage() {
                                 <span>{formatPrice(calculateTotal())}</span>
                             </div>
                         </div>
+
+                        {/* Stock warnings in summary */}
+                        {stockWarnings.length > 0 && (
+                            <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded-lg space-y-1">
+                                {stockWarnings.map((w, i) => (
+                                    <p key={i} className="text-[11px] text-red-600">⚠️ {w}</p>
+                                ))}
+                            </div>
+                        )}
 
                         <button
                             onClick={handleSave}

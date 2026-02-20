@@ -39,9 +39,39 @@ export async function middleware(request: NextRequest) {
 
     // If no user and trying to access a protected route
     if (!user && !request.nextUrl.pathname.startsWith("/login") && !request.nextUrl.pathname.startsWith("/auth")) {
+        if (request.nextUrl.pathname.startsWith("/api")) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
         const url = request.nextUrl.clone();
         url.pathname = "/login";
         return NextResponse.redirect(url);
+    }
+
+    // If user exists, check if their account is active
+    if (user && !request.nextUrl.pathname.startsWith("/login") && !request.nextUrl.pathname.startsWith("/auth")) {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('active')
+            .eq('id', user.id)
+            .single();
+
+        if (profile?.active === false) {
+            // Clear auth cookies to force sign out
+            const url = request.nextUrl.clone();
+            url.pathname = "/login";
+            url.searchParams.set("deactivated", "1");
+
+            const redirectResponse = NextResponse.redirect(url);
+
+            // Delete all Supabase auth cookies
+            request.cookies.getAll().forEach(cookie => {
+                if (cookie.name.startsWith('sb-')) {
+                    redirectResponse.cookies.delete(cookie.name);
+                }
+            });
+
+            return redirectResponse;
+        }
     }
 
     // If user is logged in and trying to access login page

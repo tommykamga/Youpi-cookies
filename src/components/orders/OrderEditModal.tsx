@@ -1,7 +1,7 @@
 "use client";
 
 import { X, Plus, Trash2, Save, FileText, Loader2, Pencil } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Order, Product } from "@/types";
 import { formatPrice } from "@/config/currency";
 import ConfirmModal from "@/components/ui/ConfirmModal";
@@ -105,7 +105,36 @@ export default function OrderEditModal({ isOpen, onClose, order, onSave, onDelet
         }, 0);
     };
 
+    // Stock warnings
+    const stockWarnings = useMemo(() => {
+        return items
+            .map(item => {
+                const product = products.find(p => p.id === item.productId);
+                if (product && item.quantity > product.stock) {
+                    return `${product.name} : qté demandée (${item.quantity}) > stock disponible (${product.stock})`;
+                }
+                return null;
+            })
+            .filter(Boolean) as string[];
+    }, [items, products]);
+
+    // Reset form state and close modal
+    const handleCancel = () => {
+        setFormData(order ?? {});
+        setItems([]);
+        setSelectedProduct("");
+        onClose();
+    };
+
     const handleSave = () => {
+        // Confirm if stock warnings exist
+        if (stockWarnings.length > 0) {
+            const ok = window.confirm(
+                "⚠️ Certaines quantités dépassent le stock disponible.\nVoulez-vous quand même valider la commande ?"
+            );
+            if (!ok) return;
+        }
+
         // Construct updated order object
         const updatedOrder = {
             ...formData,
@@ -138,7 +167,7 @@ export default function OrderEditModal({ isOpen, onClose, order, onSave, onDelet
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            onClick={onClose}
+                            onClick={handleCancel}
                             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
                         />
 
@@ -156,7 +185,7 @@ export default function OrderEditModal({ isOpen, onClose, order, onSave, onDelet
                                     <p className="text-sm text-gray-500">#{formData.id}</p>
                                 </div>
                                 <button
-                                    onClick={onClose}
+                                    onClick={handleCancel}
                                     className="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"
                                 >
                                     <X className="h-5 w-5" />
@@ -317,6 +346,21 @@ export default function OrderEditModal({ isOpen, onClose, order, onSave, onDelet
                                             </div>
                                         )}
                                     </div>
+
+                                    {/* Stock warnings */}
+                                    {stockWarnings.length > 0 && (
+                                        <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl space-y-1">
+                                            {stockWarnings.map((w, i) => (
+                                                <p key={i} className="text-xs text-red-600 flex items-start gap-1">
+                                                    <span className="shrink-0">⚠️</span>
+                                                    <span>{w}</span>
+                                                </p>
+                                            ))}
+                                            <p className="text-[11px] text-red-400 italic mt-1">
+                                                Cette alerte n'empêche pas la sauvegarde de la commande.
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Footer Actions */}
@@ -348,7 +392,7 @@ export default function OrderEditModal({ isOpen, onClose, order, onSave, onDelet
                                         )}
                                         <button
                                             type="button"
-                                            onClick={onClose}
+                                            onClick={handleCancel}
                                             className="px-4 py-2 text-gray-600 hover:text-gray-900 font-medium"
                                         >
                                             Annuler

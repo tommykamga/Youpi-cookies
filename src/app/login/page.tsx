@@ -1,18 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Cookie, Mail, Lock, Loader2, AlertCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 
 export default function LoginPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const supabase = createClient();
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(
+        searchParams.get('deactivated') === '1'
+            ? "Votre compte a été désactivé. Merci de contacter l'administrateur."
+            : null
+    );
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -20,7 +25,7 @@ export default function LoginPage() {
         setError(null);
 
         try {
-            const { error: signInError } = await supabase.auth.signInWithPassword({
+            const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
                 email,
                 password,
             });
@@ -28,9 +33,21 @@ export default function LoginPage() {
             if (signInError) {
                 console.error("Sign-in error details:", signInError);
                 setError(signInError.message || "Identifiants incorrects ou problème de connexion.");
-            } else {
-                router.push("/");
-                router.refresh();
+            } else if (authData.user) {
+                // Check if account is active
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('active')
+                    .eq('id', authData.user.id)
+                    .single();
+
+                if (profile?.active === false) {
+                    await supabase.auth.signOut();
+                    setError("Votre compte est désactivé. Merci de contacter l'administrateur.");
+                } else {
+                    router.push("/");
+                    router.refresh();
+                }
             }
         } catch (err: any) {
             console.error("Unexpected login error:", err);
