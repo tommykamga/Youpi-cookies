@@ -6,7 +6,14 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY! || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Lazy-init to avoid build-time crash (env vars not available during `next build`)
+let _openai: OpenAI | null = null;
+function getOpenAI() {
+    if (!_openai) {
+        _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    }
+    return _openai;
+}
 
 // Define System Prompt
 const SYSTEM_PROMPT = `Tu es l'assistant YELELE DIGIT MARK SARL (gestion cookies/gaufres).
@@ -270,7 +277,7 @@ export async function POST(req: Request) {
         let response: OpenAI.Chat.Completions.ChatCompletion;
 
         for (let step = 0; step < 5; step++) {
-            response = await openai.chat.completions.create({
+            response = await getOpenAI().chat.completions.create({
                 model: 'gpt-4o-mini',
                 messages: chatMessages,
                 tools,
