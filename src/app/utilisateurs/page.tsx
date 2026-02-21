@@ -6,6 +6,7 @@ import { Plus, Search, Filter, MoreHorizontal, Shield, Mail, Phone, Loader2, Use
 import { createClient } from "@/lib/supabase";
 import { User } from "@/types";
 import UserEditModal from "@/components/users/UserEditModal";
+import UserCreateModal from "@/components/users/UserCreateModal";
 import { deleteUser } from "@/app/actions/users";
 
 // Mock Users Data (Fallback)
@@ -22,53 +23,54 @@ export default function UsersPage() {
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const supabase = createClient();
 
-    useEffect(() => {
-        const fetchUsers = async () => {
-            try {
-                // Try fetching from 'profiles' first (standard Supabase pattern)
-                let { data, error } = await supabase
-                    .from('profiles')
+    const fetchUsers = async () => {
+        try {
+            // Try fetching from 'profiles' first (standard Supabase pattern)
+            let { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .order('full_name');
+
+            if (error || !data) {
+                console.warn("Profiles table not found or empty, trying 'users'...");
+                // Fallback to 'users' if 'profiles' fails
+                const response = await supabase
+                    .from('users')
                     .select('*')
                     .order('full_name');
 
-                if (error || !data) {
-                    console.warn("Profiles table not found or empty, trying 'users'...");
-                    // Fallback to 'users' if 'profiles' fails
-                    const response = await supabase
-                        .from('users')
-                        .select('*')
-                        .order('full_name');
-
-                    data = response.data;
-                    error = response.error;
-                }
-
-                if (error) {
-                    // If both fail, throw to catch block
-                    throw error;
-                }
-
-                if (data && data.length > 0) {
-                    setUsers(data);
-                } else {
-                    // Fallback to mock data if DB is empty to avoid empty table lookup
-                    console.log("No users found in DB, using mock data for display.");
-                    setUsers(mockUsers);
-                }
-            } catch (err) {
-                console.warn('Using mock data for Users (DB fetch failed or empty).');
-                // Fallback to mock data on error so UI doesn't break
-                setUsers(mockUsers);
-            } finally {
-                setLoading(false);
+                data = response.data;
+                error = response.error;
             }
-        };
 
+            if (error) {
+                // If both fail, throw to catch block
+                throw error;
+            }
+
+            if (data && data.length > 0) {
+                setUsers(data);
+            } else {
+                // Fallback to mock data if DB is empty to avoid empty table lookup
+                console.log("No users found in DB, using mock data for display.");
+                setUsers(mockUsers);
+            }
+        } catch (err) {
+            console.warn('Using mock data for Users (DB fetch failed or empty).');
+            // Fallback to mock data on error so UI doesn't break
+            setUsers(mockUsers);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
         fetchUsers();
 
         // Get current user ID for self-deletion protection
@@ -123,20 +125,30 @@ export default function UsersPage() {
     return (
         <div className="space-y-6">
             <UserEditModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
                 user={selectedUser}
                 onSave={handleSaveUser}
             />
+
+            <UserCreateModal
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                onSave={() => {
+                    fetchUsers();
+                    alert("Utilisateur créé avec succès !");
+                }}
+            />
+
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <h1 className="text-2xl font-bold text-[var(--cookie-brown)]">Utilisateurs</h1>
-                <Link
-                    href="/utilisateurs/nouveau"
+                <button
+                    onClick={() => setIsCreateModalOpen(true)}
                     className="btn-primary flex items-center gap-2 shadow-md hover:shadow-lg transform transition-transform hover:-translate-y-0.5"
                 >
                     <Plus className="h-4 w-4" />
                     Nouvel Utilisateur
-                </Link>
+                </button>
             </div>
 
             {/* Filters & Search */}
@@ -188,7 +200,7 @@ export default function UsersPage() {
 
                         <div className="flex gap-2 mt-6 w-full">
                             <button
-                                onClick={() => { setSelectedUser(user); setIsModalOpen(true); }}
+                                onClick={() => { setSelectedUser(user); setIsEditModalOpen(true); }}
                                 className="flex-1 text-sm text-[var(--cookie-brown)] hover:text-[var(--cookie-brown)]/80 font-medium border border-[var(--cookie-brown)]/20 hover:bg-[var(--cookie-brown)]/5 px-4 py-2 rounded-lg transition-colors"
                             >
                                 Gérer l'accès

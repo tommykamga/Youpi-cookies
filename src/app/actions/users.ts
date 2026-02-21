@@ -160,3 +160,72 @@ export async function deleteUser(userId: string) {
         return { success: false, error: error.message || "Erreur lors de la suppression" };
     }
 }
+
+/**
+ * Creates a new user using the Supabase Admin API.
+ * This prevents the current session from being overwritten.
+ */
+export async function createUser(data: {
+    email: string;
+    password?: string;
+    fullName: string;
+    role: string;
+}) {
+    const supabase = await createClient();
+
+    // 1. Verify caller is admin
+    const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !currentUser) {
+        return { success: false, error: "Non authentifié" };
+    }
+
+    const { data: currentProfile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', currentUser.id)
+        .single();
+
+    const callerRole = (currentProfile?.role || '').toLowerCase();
+    if (!['admin', 'super_admin', 'gerant', 'administrateur', 'manager'].includes(callerRole)) {
+        return { success: false, error: "Action non autorisée (Admin requis)." };
+    }
+
+    try {
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+        if (!serviceRoleKey) {
+            return { success: false, error: "Clé secrète du serveur manquante." };
+        }
+
+        const { createClient: createSupabaseAdmin } = await import('@supabase/supabase-js');
+        const supabaseAdmin = createSupabaseAdmin(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            serviceRoleKey,
+            { auth: { autoRefreshToken: false, persistSession: false } }
+        );
+
+        // 2. Create User via Admin API
+        const { data: authData, error: authCreateError } = await supabaseAdmin.auth.admin.createUser({
+            email: data.email.toLowerCase().trim(),
+            password: data.password || 'password123',
+            email_confirm: true,
+            user_metadata: {
+                full_name: data.fullName,
+                role: data.role,
+            }
+        });
+
+        if (authCreateError) throw authCreateError;
+
+        // Note: The on_auth_user_created trigger will auto-insert into profiles table
+        // We do not need to manually insert into the profiles table here
+
+        revalidatePath('/utilisateurs');
+        return { success: true, userId: authData?.user?.id };
+    } catch (error: any) {
+        console.error("Create User Error:", error);
+        return { success: false, error: error.message || "Erreur lors de la création de l'utilisateur" };
+    }
+}
+
