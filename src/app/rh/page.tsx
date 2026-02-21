@@ -23,8 +23,21 @@ export default function EmployeesPage() {
     // Fetch Employees
     const fetchEmployees = async () => {
         setLoading(true);
-        const { data } = await supabase.from('employees').select('*').order('fullName');
-        if (data) setEmployees(data);
+        const { data } = await supabase.from('employees').select('*, employee_payments(date)').order('fullName');
+        if (data) {
+            const mapped = data.map((emp: any) => {
+                let maxDate = emp.lastPaymentDate;
+                if (emp.employee_payments && emp.employee_payments.length > 0) {
+                    const dates = emp.employee_payments.map((p: any) => p.date);
+                    const computedMax = dates.reduce((a: string, b: string) => a > b ? a : b);
+                    if (!maxDate || computedMax > maxDate) {
+                        maxDate = computedMax;
+                    }
+                }
+                return { ...emp, lastPaymentDate: maxDate };
+            });
+            setEmployees(mapped);
+        }
         setLoading(false);
     };
 
@@ -175,10 +188,14 @@ export default function EmployeesPage() {
                     onChange={(e) => setRoleFilter(e.target.value)}
                 >
                     <option value="all">Tous les postes</option>
-                    <option value="Vendeur">Vendeur</option>
-                    <option value="Cuisson">Cuisson</option>
-                    <option value="Découpe pâte">Découpe pâte</option>
+                    <option value="Administrateur">Administrateur</option>
                     <option value="GERANT">Gérant</option>
+                    <option value="Responsable Commercial">Responsable Commercial</option>
+                    <option value="Responsable production et qualité">Responsable production et qualité</option>
+                    <option value="Vendeur">Vendeur</option>
+                    <option value="Découpe pâte">Découpe pâte</option>
+                    <option value="Cuisson">Cuisson</option>
+                    <option value="Conditionnement">Conditionnement</option>
                 </select>
                 <div className="flex items-center gap-2 text-sm text-gray-500 min-w-max">
                     <span className="hidden sm:inline">Salaires:</span>

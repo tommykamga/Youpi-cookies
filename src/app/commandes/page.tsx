@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Search, Filter, Calendar, Loader2, Pencil, FileText, ChevronDown, Trash2 } from "lucide-react";
+import { Plus, Search, Filter, Calendar, Loader2, Pencil, FileText, ChevronDown, Trash2, Copy, CheckCircle } from "lucide-react";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { Order } from "@/types";
 import OrderEditModal from "@/components/orders/OrderEditModal";
@@ -25,13 +25,15 @@ export default function OrdersPage() {
     const [statusFilter, setStatusFilter] = useState("all");
     const [dateRange, setDateRange] = useState({ start: "", end: "" });
     const [showFilters, setShowFilters] = useState(false);
+    const [activeTab, setActiveTab] = useState<'actives' | 'archivees'>('actives');
+    const [copiedId, setCopiedId] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchOrders = async () => {
             try {
                 const { data, error } = await supabase
                     .from('orders')
-                    .select('*, customer:customers(*)')
+                    .select('*, customer:customers(*), creator:profiles(full_name)')
                     .order('created_at', { ascending: false });
 
                 if (error) {
@@ -80,9 +82,19 @@ export default function OrdersPage() {
                 matchesDate = matchesDate && new Date(order.created_at) <= new Date(dateRange.end);
             }
 
-            return matchesSearch && matchesStatus && matchesDate;
+            const isArchived = order.status === 'delivered' || order.status === 'paid';
+            const matchesTab = activeTab === 'actives' ? !isArchived : isArchived;
+
+            return matchesSearch && matchesStatus && matchesDate && matchesTab;
         });
-    }, [orders, searchTerm, statusFilter, dateRange]);
+    }, [orders, searchTerm, statusFilter, dateRange, activeTab]);
+
+    const handleCopyId = (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(id);
+        setCopiedId(id);
+        setTimeout(() => setCopiedId(null), 2000);
+    };
 
     const handleRowClick = (order: Partial<Order>) => {
         setSelectedOrder(order);
@@ -150,7 +162,7 @@ export default function OrdersPage() {
             // Refresh local state after save
             const { data, error } = await supabase
                 .from('orders')
-                .select('*, customer:customers(*)')
+                .select('*, customer:customers(*), creator:profiles(full_name)')
                 .order('created_at', { ascending: false });
 
             if (!error && data) {
@@ -229,7 +241,7 @@ export default function OrdersPage() {
                     <button
                         onClick={() => {
                             setLoading(true);
-                            supabase.from('orders').select('*, customer:customers(*)')
+                            supabase.from('orders').select('*, customer:customers(*), creator:profiles(full_name)')
                                 .order('created_at', { ascending: false })
                                 .then(({ data }) => {
                                     setOrders(data || []);
@@ -330,6 +342,22 @@ export default function OrdersPage() {
                 </AnimatePresence>
             </div>
 
+            {/* Tabs Actives / Archivées */}
+            <div className="flex border-b border-gray-100">
+                <button
+                    onClick={() => setActiveTab('actives')}
+                    className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${activeTab === 'actives' ? 'border-[var(--cookie-brown)] text-[var(--cookie-brown)]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                >
+                    Commandes Actives
+                </button>
+                <button
+                    onClick={() => setActiveTab('archivees')}
+                    className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${activeTab === 'archivees' ? 'border-[var(--cookie-brown)] text-[var(--cookie-brown)]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                >
+                    Archivées (Livrées & Payées)
+                </button>
+            </div>
+
             {/* Table */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="overflow-x-auto min-h-[200px] relative">
@@ -345,6 +373,7 @@ export default function OrdersPage() {
                                     <th className="px-6 py-4 font-medium">Client</th>
                                     <th className="px-6 py-4 font-medium">Date</th>
                                     <th className="px-6 py-4 font-medium">Statut</th>
+                                    <th className="px-6 py-4 font-medium">Créé par</th>
                                     <th className="px-6 py-4 font-medium text-right">Total</th>
                                     <th className="px-6 py-4 font-medium text-center">Actions</th>
                                 </tr>
@@ -369,8 +398,13 @@ export default function OrdersPage() {
                                             className="group transition-colors cursor-pointer relative"
                                             onClick={() => handleRowClick(order)}
                                         >
-                                            <td className="px-6 py-4 font-bold text-[var(--cookie-brown)]">
-                                                {order.id}
+                                            <td className="px-6 py-4 font-bold text-[var(--cookie-brown)] cursor-pointer" onClick={(e) => handleCopyId(e, order.id!)}>
+                                                <div className="flex items-center gap-2 group/copy relative">
+                                                    <span>#{order.id?.substring(0, 8)}</span>
+                                                    <div className="opacity-0 group-hover/copy:opacity-100 transition-opacity p-1 bg-gray-100 rounded text-gray-500 hover:text-[var(--cookie-brown)]">
+                                                        {copiedId === order.id ? <CheckCircle className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+                                                    </div>
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4 font-medium">
                                                 <div className="flex items-center gap-2">
@@ -385,6 +419,9 @@ export default function OrdersPage() {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <StatusBadge status={order.status!} />
+                                            </td>
+                                            <td className="px-6 py-4 text-xs text-gray-500">
+                                                {(order as any).creator?.full_name || '-'}
                                             </td>
                                             <td className="px-6 py-4 text-right font-bold text-gray-900">
                                                 {formatPrice(order.total_amount || 0)}

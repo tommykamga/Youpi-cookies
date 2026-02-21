@@ -373,7 +373,12 @@ export default function OrderEditModal({ isOpen, onClose, order, onSave, onDelet
                                     </div>
 
                                     <div className="flex items-center gap-3 w-full sm:w-auto">
-                                        <button type="button" className="p-2 text-gray-500 hover:text-gray-900 hover:bg-white rounded-lg border border-transparent hover:border-gray-200 transition-all" title="Générer PDF">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (order?.id) window.open(`/commandes/${order.id}`, '_blank');
+                                            }}
+                                            className="p-2 text-gray-500 hover:text-gray-900 hover:bg-white rounded-lg border border-transparent hover:border-gray-200 transition-all" title="Générer PDF">
                                             <FileText className="h-5 w-5" />
                                         </button>
                                         {onDelete && order && (

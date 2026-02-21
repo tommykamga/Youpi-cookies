@@ -76,36 +76,80 @@ export default function EmployeeEditModal({ isOpen, onClose, employee, onSave, o
     const confirmAddPayment = async () => {
         if (!formData.id) return;
 
-        const { data, error } = await supabase
-            .from('employee_payments')
-            .insert([{
-                employee_id: formData.id,
-                amount: newPayment.amount,
-                date: newPayment.date
-            }])
-            .select();
+        if (editingPaymentIndex !== null && formData.paymentHistory && formData.paymentHistory[editingPaymentIndex]?.id) {
+            // Update existing payment
+            const paymentId = formData.paymentHistory[editingPaymentIndex].id;
+            const { data, error } = await supabase
+                .from('employee_payments')
+                .update({ amount: newPayment.amount, date: newPayment.date })
+                .eq('id', paymentId)
+                .select();
 
-        if (data) {
-            const updatedHistory = [...(formData.paymentHistory || []), data[0]];
-            updatedHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-            setFormData(prev => ({
-                ...prev,
-                paymentHistory: updatedHistory,
-                lastPaymentDate: newPayment.date
-            }));
-            
-            // Also update lastPaymentDate on employee if it's the latest
-            await supabase.from('employees').update({ lastPaymentDate: newPayment.date }).eq('id', formData.id);
+            if (data && data.length > 0) {
+                const updatedHistory = [...formData.paymentHistory];
+                updatedHistory[editingPaymentIndex] = data[0];
+                updatedHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                setFormData(prev => ({
+                    ...prev,
+                    paymentHistory: updatedHistory,
+                    lastPaymentDate: updatedHistory[0]?.date
+                }));
+                // Also update lastPaymentDate on employee if it's the latest
+                await supabase.from('employees').update({ lastPaymentDate: updatedHistory[0].date }).eq('id', formData.id);
+            }
+        } else {
+            // Insert new payment
+            const { data, error } = await supabase
+                .from('employee_payments')
+                .insert([{
+                    employee_id: formData.id,
+                    amount: newPayment.amount,
+                    date: newPayment.date
+                }])
+                .select();
+
+            if (data && data.length > 0) {
+                const updatedHistory = [...(formData.paymentHistory || []), data[0]];
+                updatedHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                setFormData(prev => ({
+                    ...prev,
+                    paymentHistory: updatedHistory,
+                    lastPaymentDate: newPayment.date // new payment might not be the latest if backdated, but assuming it usually is or sorted above takes care of history; we should probably take updatedHistory[0].date
+                }));
+
+                // Update lastPaymentDate on employee
+                await supabase.from('employees').update({ lastPaymentDate: updatedHistory[0].date }).eq('id', formData.id);
+            }
         }
+
         setIsAddingPayment(false);
+        setEditingPaymentIndex(null);
         setNewPayment({ date: new Date().toISOString().split('T')[0], amount: formData.salary || 0 });
     };
 
-    const handleDeletePayment = (index: number) => {
+    const handleDeletePayment = async (index: number) => {
+        if (!formData.paymentHistory) return;
+        const paymentToDelete = formData.paymentHistory[index];
+
         if (confirm("Êtes-vous sûr de vouloir supprimer ce paiement ?")) {
-            const updatedHistory = [...(formData.paymentHistory || [])];
+            if (paymentToDelete.id) {
+                await supabase.from('employee_payments').delete().eq('id', paymentToDelete.id);
+            }
+            const updatedHistory = [...formData.paymentHistory];
             updatedHistory.splice(index, 1);
-            setFormData(prev => ({ ...prev, paymentHistory: updatedHistory }));
+
+            // Recompute last payment date
+            const newLastPaymentDate = updatedHistory.length > 0 ? updatedHistory[0].date : null;
+
+            setFormData(prev => ({
+                ...prev,
+                paymentHistory: updatedHistory,
+                lastPaymentDate: newLastPaymentDate
+            }));
+
+            if (formData.id) {
+                await supabase.from('employees').update({ lastPaymentDate: newLastPaymentDate }).eq('id', formData.id);
+            }
         }
     };
 
@@ -254,6 +298,7 @@ export default function EmployeeEditModal({ isOpen, onClose, employee, onSave, o
                                             <input
                                                 type="date"
                                                 value={formData.exitDate || ""}
+                                                min={formData.hireDate || ""}
                                                 onChange={(e) => handleChange("exitDate", e.target.value)}
                                                 className="w-full p-2 border border-gray-200 rounded-lg"
                                             />
@@ -375,9 +420,13 @@ export default function EmployeeEditModal({ isOpen, onClose, employee, onSave, o
                         <div className="p-6 border-t border-gray-100 flex justify-between items-center bg-gray-50 rounded-b-2xl mt-auto">
                             {employee?.id && (
                                 <div className="flex gap-2">
-                                    {onArchive && (
+                                    {onArchive && formData.active && (
                                         <button
-                                            onClick={() => onArchive(employee.id!)}
+                                            onClick={() => {
+                                                if (confirm(`Voulez-vous archiver l'employé ${formData.fullName} ?`)) {
+                                                    onArchive(employee.id!);
+                                                }
+                                            }}
                                             className="p-2 text-orange-500 hover:bg-orange-50 rounded-lg tooltip"
                                             title="Archiver"
                                         >

@@ -7,11 +7,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Product } from "@/types";
 import { formatPrice } from "@/config/currency";
 import { createClient } from "@/lib/supabase";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 export default function ProductsPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
+    const [statusFilter, setStatusFilter] = useState("all");
+    const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const supabase = createClient();
 
     useEffect(() => {
@@ -53,9 +57,67 @@ export default function ProductsPage() {
         fetchProducts();
     }, []);
 
-    const filteredProducts = products.filter(product =>
-        product.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredProducts = products.filter(product => {
+        const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+
+        let matchesStatus = true;
+        if (statusFilter === 'low_stock') {
+            matchesStatus = product.stock <= (product.alert_threshold || 10) && product.stock > 0;
+        } else if (statusFilter === 'out_of_stock') {
+            matchesStatus = product.stock === 0;
+        } else if (statusFilter === 'in_stock') {
+            matchesStatus = product.stock > (product.alert_threshold || 10);
+        }
+
+        return matchesSearch && matchesStatus;
+    });
+
+    const handleDeleteClick = async (product: Product) => {
+        try {
+            // Check if product is used in any orders
+            const { count, error } = await supabase
+                .from('order_items')
+                .select('*', { count: 'exact', head: true })
+                .eq('product_id', product.id);
+
+            if (error) throw error;
+
+            if (count && count > 0) {
+                alert(`Impossible de supprimer "${product.name}" car ce produit est déjà utilisé dans ${count} commande(s). Veuillez le masquer ou le mettre en rupture de stock si nécessaire.`);
+                return;
+            }
+
+            setProductToDelete(product);
+            setIsConfirmOpen(true);
+        } catch (error) {
+            console.error("Error checking product usage:", error);
+            alert("Erreur lors de la vérification du produit.");
+        }
+    };
+
+    const confirmDelete = async () => {
+        if (!productToDelete) return;
+
+        try {
+            const { error } = await supabase
+                .from('products')
+                .delete()
+                .eq('id', productToDelete.id);
+
+            if (error) {
+                // Try from 'produits' if first one fails
+                const res = await supabase.from('produits').delete().eq('id', productToDelete.id);
+                if (res.error) throw res.error;
+            }
+
+            setProducts(prev => prev.filter(p => p.id !== productToDelete.id));
+            setIsConfirmOpen(false);
+            setProductToDelete(null);
+        } catch (error) {
+            console.error("Error deleting product:", error);
+            alert("Erreur lors de la suppression du produit.");
+        }
+    };
 
     if (loading) {
         return (
@@ -91,13 +153,16 @@ export default function ProductsPage() {
                     />
                 </div>
                 <div className="flex gap-2">
-                    <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 text-gray-600">
-                        <Filter className="h-4 w-4" />
-                        Filtrer
-                    </button>
-                    <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 text-gray-600">
-                        <MoreHorizontal className="h-4 w-4" />
-                    </button>
+                    <select
+                        className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 text-gray-600 focus:outline-none focus:ring-2 focus:ring-[var(--cookie-brown)] appearance-none"
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                    >
+                        <option value="all">Tous les statuts</option>
+                        <option value="in_stock">En stock</option>
+                        <option value="low_stock">Stock faible</option>
+                        <option value="out_of_stock">Rupture</option>
+                    </select>
                 </div>
             </div>
 
@@ -140,6 +205,10 @@ export default function ProductsPage() {
                                         <button
                                             className="p-2 bg-white/90 backdrop-blur-sm rounded-full text-gray-600 hover:text-red-500 shadow-sm hover:shadow"
                                             title="Supprimer"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                handleDeleteClick(product);
+                                            }}
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </button>
@@ -199,6 +268,17 @@ export default function ProductsPage() {
                     )}
                 </AnimatePresence>
             </div>
+
+            <ConfirmModal
+                isOpen={isConfirmOpen}
+                title="Supprimer le produit"
+                message={`Êtes-vous sûr de vouloir supprimer le produit "${productToDelete?.name}" ? Cette action est irréversible.`}
+                onConfirm={confirmDelete}
+                onCancel={() => {
+                    setIsConfirmOpen(false);
+                    setProductToDelete(null);
+                }}
+            />
         </div>
     );
 }

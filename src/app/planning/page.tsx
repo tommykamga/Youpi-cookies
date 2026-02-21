@@ -265,12 +265,17 @@ export default function TasksPage() {
                                             onClick={() => handleEdit(task)}
                                         >
                                             <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                                                <button
-                                                    onClick={() => toggleStatus(task.id!)}
-                                                    className={`h-5 w-5 rounded border flex items-center justify-center transition-colors ${task.status === 'done' ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 hover:border-green-500'}`}
-                                                >
-                                                    {task.status === 'done' && <Check className="h-3 w-3" />}
-                                                </button>
+                                                <div className="relative inline-block group/check">
+                                                    <button
+                                                        onClick={() => toggleStatus(task.id!)}
+                                                        className={`h-5 w-5 rounded border flex items-center justify-center transition-colors ${task.status === 'done' ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 hover:border-green-500'}`}
+                                                    >
+                                                        {task.status === 'done' && <Check className="h-3 w-3" />}
+                                                    </button>
+                                                    <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover/check:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                                                        {task.status === 'done' ? "Marquer à faire" : "Marquer comme terminé"}
+                                                    </div>
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <span className={`font-medium text-gray-900 ${task.status === 'done' ? 'line-through text-gray-400' : ''}`}>
@@ -314,7 +319,7 @@ export default function TasksPage() {
                 </div>
             )}
 
-            {/* View - Kanban Placeholder */}
+            {/* View - Kanban */}
             {viewMode === 'kanban' && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {['todo', 'in_progress', 'done'].map(status => (
@@ -325,6 +330,7 @@ export default function TasksPage() {
                                     {filteredTasks.filter(t => t.status === status).length}
                                 </span>
                             </h3>
+
                             <div className="space-y-3">
                                 {filteredTasks.filter(t => t.status === status).map(task => (
                                     <div
@@ -343,14 +349,16 @@ export default function TasksPage() {
                                                 <span className="text-xs text-gray-400">{new Date(task.due_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>
                                             )}
                                         </div>
-                                        <h4 className={`font-medium text-gray-900 ${task.status === 'done' ? 'line-through text-gray-400' : ''}`}>{task.title}</h4>
+                                        <h4 className={`font-medium text-gray-900 ${task.status === 'done' ? 'line-through text-gray-400' : ''}`}>
+                                            {task.title}
+                                        </h4>
                                         <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
-                                            <span className="flex items-center gap-1">
+                                            <div className="flex items-center gap-1">
                                                 <div className="w-4 h-4 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center text-[10px]">
                                                     {task.assigned_to?.charAt(0)}
                                                 </div>
                                                 {task.assigned_to?.split(' ')[0]}
-                                            </span>
+                                            </div>
                                         </div>
                                     </div>
                                 ))}
@@ -360,9 +368,9 @@ export default function TasksPage() {
                 </div>
             )}
 
-            <div className="text-xs text-center text-gray-400 sm:hidden">
+            <p className="text-xs text-center text-gray-400 sm:hidden">
                 Swipe gauche pour terminer • Swipe droite pour dupliquer
-            </div>
+            </p>
         </div>
     );
 }

@@ -12,6 +12,7 @@ export default function StocksPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
+    const [statusFilter, setStatusFilter] = useState("all");
     const supabase = createClient();
 
     useEffect(() => {
@@ -53,9 +54,20 @@ export default function StocksPage() {
         fetchProducts();
     }, []);
 
-    const filteredProducts = products.filter(product =>
-        product.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredProducts = products.filter(product => {
+        const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+
+        let matchesStatus = true;
+        if (statusFilter === 'low_stock') {
+            matchesStatus = product.stock <= (product.alert_threshold || 10) && product.stock > 0;
+        } else if (statusFilter === 'out_of_stock') {
+            matchesStatus = product.stock === 0;
+        } else if (statusFilter === 'in_stock') {
+            matchesStatus = product.stock > (product.alert_threshold || 10);
+        }
+
+        return matchesSearch && matchesStatus;
+    });
 
     const lowStockCount = products.filter(p => p.stock <= (p.alert_threshold || 10) && p.stock > 0).length;
     const outOfStockCount = products.filter(p => p.stock === 0).length;
@@ -116,10 +128,16 @@ export default function StocksPage() {
                     />
                 </div>
                 <div className="flex gap-2">
-                    <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 text-gray-600">
-                        <Filter className="h-4 w-4" />
-                        Filtrer
-                    </button>
+                    <select
+                        className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 text-gray-600 focus:outline-none focus:ring-2 focus:ring-[var(--cookie-brown)] appearance-none"
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                    >
+                        <option value="all">Tous les statuts</option>
+                        <option value="in_stock">En stock</option>
+                        <option value="low_stock">Stock faible</option>
+                        <option value="out_of_stock">Rupture</option>
+                    </select>
                 </div>
             </div>
 

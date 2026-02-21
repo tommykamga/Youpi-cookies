@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import Link from "next/link";
+import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, Printer, Download, Mail, Phone, MapPin, Loader2 } from "lucide-react";
 import { Order } from "@/types";
 import { createClient } from "@/lib/supabase";
@@ -14,9 +15,20 @@ export default function InvoiceDetailsPage({ params }: { params: Promise<{ id: s
     const [order, setOrder] = useState<Order | null>(null);
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
+    const [downloading, setDownloading] = useState(false);
+    const searchParams = useSearchParams();
     const supabase = createClient();
 
     // ... fetchOrder ...
+
+    useEffect(() => {
+        if (!loading && order && searchParams.get('download') === 'true') {
+            const timer = setTimeout(() => {
+                handleDownloadPDF();
+            }, 500);
+            return () => clearTimeout(timer);
+        }
+    }, [loading, order, searchParams]);
 
     const handleWhatsApp = async () => {
         if (!order || !order.customer?.phone) {
@@ -81,11 +93,37 @@ export default function InvoiceDetailsPage({ params }: { params: Promise<{ id: s
             console.error("WhatsApp Error:", error);
             alert(`Erreur: ${error.message}`);
         } finally {
+        } finally {
             setSending(false);
         }
     };
 
+    const handleDownloadPDF = async () => {
+        setDownloading(true);
+        try {
+            const html2canvas = (await import('html2canvas')).default;
+            const jsPDF = (await import('jspdf')).default;
 
+            const element = document.getElementById('invoice-content');
+            if (!element) throw new Error("Facture introuvable dans le DOM");
+
+            const canvas = await html2canvas(element, { scale: 2 });
+            const imgData = canvas.toDataURL('image/png');
+
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`Facture-${order?.id || 'Inconnue'}.pdf`);
+
+        } catch (error: any) {
+            console.error("PDF Download Error:", error);
+            alert(`Erreur lors de la génération du PDF: ${error.message}`);
+        } finally {
+            setDownloading(false);
+        }
+    };
 
     const handlePrint = () => {
         window.print();
@@ -141,14 +179,14 @@ export default function InvoiceDetailsPage({ params }: { params: Promise<{ id: s
                     </button>
 
                     <div className="relative group">
-                        <button className="btn-primary flex items-center gap-2">
-                            <Download className="h-4 w-4" />
+                        <button
+                            onClick={handleDownloadPDF}
+                            disabled={downloading}
+                            className="btn-primary flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                        >
+                            {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                             Télécharger PDF
                         </button>
-                        {/* Tooltip for PDF - implying it uses print behavior for now */}
-                        <div className="absolute right-0 mt-2 w-48 bg-gray-800 text-white text-xs rounded p-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                            Utilisez "Imprimer &gt; Enregistrer au format PDF"
-                        </div>
                     </div>
                 </div>
             </div>

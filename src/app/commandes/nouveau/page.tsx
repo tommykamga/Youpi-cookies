@@ -100,6 +100,10 @@ export default function NewOrderPage() {
             const randomSuffix = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
             const orderId = `CMD-${dateStr}-${randomSuffix}`;
 
+            // Get current user
+            const { data: { session } } = await supabase.auth.getSession();
+            const userId = session?.user?.id;
+
             // 2. Insert Order
             const { error: orderError } = await supabase.from('orders').insert({
                 id: orderId,
@@ -108,6 +112,7 @@ export default function NewOrderPage() {
                 status: status,
                 delivery_date: deliveryDate || null,
                 notes: notes,
+                user_id: userId || null,
                 created_at: new Date().toISOString()
             });
 
