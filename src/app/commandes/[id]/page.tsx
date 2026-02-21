@@ -93,7 +93,6 @@ export default function InvoiceDetailsPage({ params }: { params: Promise<{ id: s
             console.error("WhatsApp Error:", error);
             alert(`Erreur: ${error.message}`);
         } finally {
-        } finally {
             setSending(false);
         }
     };
