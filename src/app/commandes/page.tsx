@@ -189,11 +189,7 @@ export default function OrdersPage() {
             if (error) throw error;
 
             // Log success to DB logic trace
-            await supabase.from('tasks').insert({
-                title: 'TRACE_DELETE_SUCCESS',
-                description: `Order ${orderId} deleted successfully. Returned: ${JSON.stringify(data)}`,
-                status: 'todo'
-            });
+
 
             console.log(`[Diagnostic] Successfully deleted order: ${orderId}`);
 
@@ -400,7 +396,7 @@ export default function OrdersPage() {
                                         >
                                             <td className="px-6 py-4 font-bold text-[var(--cookie-brown)] cursor-pointer" onClick={(e) => handleCopyId(e, order.id!)}>
                                                 <div className="flex items-center gap-2 group/copy relative">
-                                                    <span>#{order.id?.substring(0, 8)}</span>
+                                                    <span>{order.id}</span>
                                                     <div className="opacity-0 group-hover/copy:opacity-100 transition-opacity p-1 bg-gray-100 rounded text-gray-500 hover:text-[var(--cookie-brown)]">
                                                         {copiedId === order.id ? <CheckCircle className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
                                                     </div>

@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase";
 import { User } from "@/types";
 import UserEditModal from "@/components/users/UserEditModal";
 import UserCreateModal from "@/components/users/UserCreateModal";
+import ActiveSessions from "@/components/users/ActiveSessions";
 import { deleteUser } from "@/app/actions/users";
 
 // Mock Users Data (Fallback)
@@ -149,6 +150,11 @@ export default function UsersPage() {
                     <Plus className="h-4 w-4" />
                     Nouvel Utilisateur
                 </button>
+            </div>
+
+            {/* Sessions Actives (Live) */}
+            <div className="mb-8">
+                <ActiveSessions />
             </div>
 
             {/* Filters & Search */}

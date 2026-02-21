@@ -120,7 +120,7 @@ export default function InvoicesPage() {
                                             #{invoice.id}
                                         </td>
                                         <td className="px-6 py-4 text-gray-600">
-                                            {invoice.order?.id || "N/A"}
+                                            {invoice.order_id || "N/A"}
                                         </td>
                                         <td className="px-6 py-4 font-medium">
                                             {invoice.order?.customer?.company_name || invoice.order?.customer?.name || "Client Inconnu"}

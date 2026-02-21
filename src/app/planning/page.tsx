@@ -5,6 +5,7 @@ import { Plus, Search, Filter, CheckCircle, Clock, AlertCircle, MoreHorizontal, 
 import { Task } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
 import TaskEditModal from "@/components/tasks/TaskEditModal";
+import BulkActions from "@/components/tasks/BulkActions";
 import { createClient } from "@/lib/supabase";
 
 // Removed mock data
@@ -16,6 +17,8 @@ export default function TasksPage() {
     const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedTask, setSelectedTask] = useState<Partial<Task> | null>(null);
+    const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+    const [isDeletingBulk, setIsDeletingBulk] = useState(false);
 
     // Fetch Tasks
     const fetchTasks = async () => {
@@ -110,6 +113,62 @@ export default function TasksPage() {
         handleNewTask(copy);
     };
 
+    const handleBulkDelete = async () => {
+        if (!selectedTaskIds.length) return;
+        setIsDeletingBulk(true);
+        try {
+            const { error } = await supabase
+                .from('tasks')
+                .delete()
+                .in('id', selectedTaskIds);
+
+            if (error) throw error;
+
+            setTasks(prev => prev.filter(t => !selectedTaskIds.includes(t.id!)));
+            setSelectedTaskIds([]);
+        } catch (err: any) {
+            console.error("Erreur de suppression multiple:", err);
+            alert("Erreur lors de la suppression des tâches : " + err.message);
+        } finally {
+            setIsDeletingBulk(false);
+        }
+    };
+
+    const handleClearAll = async () => {
+        if (!confirm("Attention : vous allez supprimer TOUTES les tâches du planning. Continuer ?")) return;
+        setIsDeletingBulk(true);
+        try {
+            const { error } = await supabase
+                .from('tasks')
+                .delete()
+                .neq('id', '00000000-0000-0000-0000-000000000000'); // Dummy condition to delete all
+
+            if (error) throw error;
+
+            setTasks([]);
+            setSelectedTaskIds([]);
+        } catch (err: any) {
+            console.error("Erreur vidage planning:", err);
+            alert("Erreur lors du vidage du planning : " + err.message);
+        } finally {
+            setIsDeletingBulk(false);
+        }
+    };
+
+    const toggleSelection = (id: string) => {
+        setSelectedTaskIds(prev =>
+            prev.includes(id) ? prev.filter(taskId => taskId !== id) : [...prev, id]
+        );
+    };
+
+    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.checked) {
+            setSelectedTaskIds(filteredTasks.map(t => t.id!));
+        } else {
+            setSelectedTaskIds([]);
+        }
+    };
+
     const toggleStatus = async (id: string) => {
         const task = tasks.find(t => t.id === id);
         if (!task) return;
@@ -135,7 +194,7 @@ export default function TasksPage() {
     ];
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 pb-20">
             <TaskEditModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
@@ -234,7 +293,15 @@ export default function TasksPage() {
                         <table className="w-full text-sm text-left">
                             <thead className="bg-gray-50 text-gray-500 border-b border-gray-100">
                                 <tr>
-                                    <th className="w-10 px-6 py-4"></th>
+                                    <th className="w-12 px-4 py-4 text-center">
+                                        <input
+                                            type="checkbox"
+                                            className="rounded border-gray-300 text-[var(--cookie-brown)] focus:ring-[var(--cookie-brown)]"
+                                            checked={filteredTasks.length > 0 && selectedTaskIds.length === filteredTasks.length}
+                                            onChange={handleSelectAll}
+                                        />
+                                    </th>
+                                    <th className="w-10 px-2 py-4"></th>
                                     <th className="px-6 py-4 font-medium">Tâche</th>
                                     <th className="px-6 py-4 font-medium">Assigné à</th>
                                     <th className="px-6 py-4 font-medium">Échéance</th>
@@ -261,10 +328,18 @@ export default function TasksPage() {
                                                     handleDuplicate(task); // Swipe Right -> Dup
                                                 }
                                             }}
-                                            className="group cursor-pointer relative"
+                                            className={`group cursor-pointer relative ${selectedTaskIds.includes(task.id!) ? 'bg-blue-50/50' : ''}`}
                                             onClick={() => handleEdit(task)}
                                         >
-                                            <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                                            <td className="w-12 px-4 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                                                <input
+                                                    type="checkbox"
+                                                    className="rounded border-gray-300 text-[var(--cookie-brown)] focus:ring-[var(--cookie-brown)]"
+                                                    checked={selectedTaskIds.includes(task.id!)}
+                                                    onChange={() => toggleSelection(task.id!)}
+                                                />
+                                            </td>
+                                            <td className="px-2 py-4" onClick={(e) => e.stopPropagation()}>
                                                 <div className="relative inline-block group/check">
                                                     <button
                                                         onClick={() => toggleStatus(task.id!)}
@@ -371,6 +446,15 @@ export default function TasksPage() {
             <p className="text-xs text-center text-gray-400 sm:hidden">
                 Swipe gauche pour terminer • Swipe droite pour dupliquer
             </p>
+
+            <BulkActions
+                selectedCount={selectedTaskIds.length}
+                totalCount={tasks.length}
+                isDeleting={isDeletingBulk}
+                onDeleteSelected={handleBulkDelete}
+                onClearAll={handleClearAll}
+                onClearSelection={() => setSelectedTaskIds([])}
+            />
         </div>
     );
 }

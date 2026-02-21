@@ -229,3 +229,120 @@ export async function createUser(data: {
     }
 }
 
+/**
+ * Fetches active user sessions (users who logged in within the last 24 hours).
+ * Requires Admin privileges.
+ */
+export async function getActiveSessions() {
+    const supabase = await createClient();
+
+    // Verify caller is admin
+    const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !currentUser) {
+        return { success: false, error: "Non authentifié" };
+    }
+
+    const { data: currentProfile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', currentUser.id)
+        .single();
+
+    const callerRole = (currentProfile?.role || '').toLowerCase();
+    if (!['admin', 'super_admin', 'gerant', 'administrateur', 'manager'].includes(callerRole)) {
+        return { success: false, error: "Action non autorisée." };
+    }
+
+    try {
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        if (!serviceRoleKey) throw new Error("Clé secrète manquante.");
+
+        const { createClient: createSupabaseAdmin } = await import('@supabase/supabase-js');
+        const supabaseAdmin = createSupabaseAdmin(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            serviceRoleKey,
+            { auth: { autoRefreshToken: false, persistSession: false } }
+        );
+
+        // Fetch all users using Admin Auth API
+        const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers();
+        if (error) throw error;
+
+        // Filter users who signed in within the last 24 hours
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).getTime();
+
+        const activeUsers = users.filter(u => {
+            if (!u.last_sign_in_at) return false;
+            return new Date(u.last_sign_in_at).getTime() > twentyFourHoursAgo;
+        }).map(u => ({
+            id: u.id,
+            email: u.email,
+            last_sign_in_at: u.last_sign_in_at,
+            full_name: u.user_metadata?.full_name || 'Inconnu',
+            role: u.user_metadata?.role || 'Inconnu'
+        }));
+
+        // Sort by most recent sign-in first
+        activeUsers.sort((a, b) => new Date(b.last_sign_in_at!).getTime() - new Date(a.last_sign_in_at!).getTime());
+
+        return { success: true, sessions: activeUsers };
+    } catch (error: any) {
+        console.error("Get Active Sessions Error:", error);
+        return { success: false, error: error.message || "Erreur lors de la récupération des sessions" };
+    }
+}
+
+/**
+ * Forces a user to be logged out by deleting their Auth sessions.
+ * Requires Admin privileges.
+ */
+export async function forceLogout(userId: string) {
+    const supabase = await createClient();
+
+    // Verify caller is admin
+    const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !currentUser) {
+        return { success: false, error: "Non authentifié" };
+    }
+
+    const { data: currentProfile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', currentUser.id)
+        .single();
+
+    const callerRole = (currentProfile?.role || '').toLowerCase();
+    if (!['admin', 'super_admin', 'gerant', 'administrateur', 'manager'].includes(callerRole)) {
+        return { success: false, error: "Action non autorisée." };
+    }
+
+    try {
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        if (!serviceRoleKey) throw new Error("Clé secrète manquante.");
+
+        const { createClient: createSupabaseAdmin } = await import('@supabase/supabase-js');
+        const supabaseAdmin = createSupabaseAdmin(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            serviceRoleKey,
+            { auth: { autoRefreshToken: false, persistSession: false } }
+        );
+
+        // Supabase's admin.signOut() requires the specific session JWT.
+        // To force logout a user by ID, we update their metadata to trigger a logout
+        // on the client-side (if configured) or temporarily ban them to invalidate refresh tokens.
+        const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+            user_metadata: { force_logout_at: new Date().toISOString() },
+            ban_duration: '1ms' // A very short ban to invalidate active refresh tokens immediately
+        });
+
+        if (error) throw error;
+
+        return { success: true };
+    } catch (error: any) {
+        console.error("Force Logout Error:", error);
+        return { success: false, error: error.message || "Erreur lors de la déconnexion forcée" };
+    }
+}
+
