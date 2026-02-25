@@ -30,46 +30,43 @@ export default function Home() {
     const fetchDashboardData = async () => {
       setLoading(true);
 
-      // 1. Revenue (This Month)
       const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
-      const { data: revenueData } = await supabase
-        .from('orders')
-        .select('total_amount')
-        .gte('created_at', firstDayOfMonth);
-      const totalRevenue = revenueData?.reduce((sum: number, o: any) => sum + (o.total_amount || 0), 0) || 0;
-
-      // 2. Active Orders
-      const { count: ordersCount } = await supabase
-        .from('orders')
-        .select('*', { count: 'exact', head: true })
-        .in('status', ['new', 'preparing', 'ready']);
-
-      // 3. Stock Alerts
-      const { data: products } = await supabase.from('products').select('id, name, stock, alert_threshold, unit');
-      const alerts = products?.filter((p: any) => p.stock <= (p.alert_threshold || 10)) || [];
-
-      // 4. Urgent Tasks
-      const { count: tasksCount } = await supabase
-        .from('tasks')
-        .select('*', { count: 'exact', head: true })
-        .eq('priority', 'high')
-        .neq('status', 'done');
-
-      // 5. Recent Orders
-      const { data: latestOrders } = await supabase
-        .from('orders')
-        .select('id, total_amount, status, created_at, customer:customers(name)')
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      // 6. Chart Data (Last 7 Days)
       const last7Days = new Date();
       last7Days.setDate(last7Days.getDate() - 7);
-      const { data: salesData } = await supabase
-        .from('orders')
-        .select('total_amount, created_at')
-        .gte('created_at', last7Days.toISOString());
+      const twelveMonthsAgo = new Date();
+      twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 11);
+      twelveMonthsAgo.setDate(1);
+      const eightWeeksAgo = new Date();
+      eightWeeksAgo.setDate(eightWeeksAgo.getDate() - (8 * 7));
 
+      // Fetch all 8 datasets in parallel to drastically cut down loading time
+      const [
+        { data: revenueData },
+        { count: ordersCount },
+        { data: products },
+        { count: tasksCount },
+        { data: latestOrders },
+        { data: salesData },
+        { data: monthlyData },
+        { data: productionData }
+      ] = await Promise.all([
+        supabase.from('orders').select('total_amount').gte('created_at', firstDayOfMonth),
+        supabase.from('orders').select('*', { count: 'exact', head: true }).in('status', ['new', 'preparing', 'ready']),
+        supabase.from('products').select('id, name, stock, alert_threshold, unit'),
+        supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('priority', 'high').neq('status', 'done'),
+        supabase.from('orders').select('id, total_amount, status, created_at, customer:customers(name)').order('created_at', { ascending: false }).limit(5),
+        supabase.from('orders').select('total_amount, created_at').gte('created_at', last7Days.toISOString()),
+        supabase.from('orders').select('created_at').gte('created_at', twelveMonthsAgo.toISOString()),
+        supabase.from('stock_movements').select('quantity, created_at').eq('type', 'IN').gte('created_at', eightWeeksAgo.toISOString())
+      ]);
+
+      // 1. Revenue
+      const totalRevenue = revenueData?.reduce((sum: number, o: any) => sum + (o.total_amount || 0), 0) || 0;
+
+      // 3. Stock Alerts
+      const alerts = products?.filter((p: any) => p.stock <= (p.alert_threshold || 10)) || [];
+
+      // 6. Chart Data (Last 7 Days)
       const days = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
       const groupedData = Array.from({ length: 7 }, (_, i) => {
         const d = new Date();
@@ -81,25 +78,7 @@ export default function Home() {
         return { name: dayName, uv: total };
       });
 
-      setStats({
-        revenue: totalRevenue,
-        ordersCount: ordersCount || 0,
-        stockAlertsCount: alerts.length,
-        urgentTasksCount: tasksCount || 0
-      });
-      setRecentOrders(latestOrders || []);
-      setStockAlerts(alerts.slice(0, 3));
-      setChartData(groupedData);
-
       // 7. Monthly Orders (Last 12 Months)
-      const twelveMonthsAgo = new Date();
-      twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 11);
-      twelveMonthsAgo.setDate(1);
-      const { data: monthlyData } = await supabase
-        .from('orders')
-        .select('created_at')
-        .gte('created_at', twelveMonthsAgo.toISOString());
-
       const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
       const groupedMonthly = Array.from({ length: 12 }, (_, i) => {
         const d = new Date(twelveMonthsAgo);
@@ -114,14 +93,6 @@ export default function Home() {
       setMonthlyOrdersData(groupedMonthly);
 
       // 8. Weekly Production (Last 8 Weeks)
-      const eightWeeksAgo = new Date();
-      eightWeeksAgo.setDate(eightWeeksAgo.getDate() - (8 * 7));
-      const { data: productionData } = await supabase
-        .from('stock_movements')
-        .select('quantity, created_at')
-        .eq('type', 'IN')
-        .gte('created_at', eightWeeksAgo.toISOString());
-
       const groupedWeekly = Array.from({ length: 8 }, (_, i) => {
         const start = new Date(eightWeeksAgo);
         start.setDate(start.getDate() + (i * 7));
@@ -137,7 +108,17 @@ export default function Home() {
           .reduce((sum: number, p: any) => sum + (p.quantity || 0), 0) || 0;
         return { name: weekLabel, total };
       });
+
       setWeeklyProductionData(groupedWeekly);
+      setStats({
+        revenue: totalRevenue,
+        ordersCount: ordersCount || 0,
+        stockAlertsCount: alerts.length,
+        urgentTasksCount: tasksCount || 0
+      });
+      setRecentOrders(latestOrders || []);
+      setStockAlerts(alerts.slice(0, 3));
+      setChartData(groupedData);
 
       setLoading(false);
     };
