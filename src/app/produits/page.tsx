@@ -8,9 +8,11 @@ import { Product } from "@/types";
 import { formatPrice } from "@/config/currency";
 import { createClient } from "@/lib/supabase";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import { useDebounce } from "use-debounce";
 
 export default function ProductsPage() {
     const [searchTerm, setSearchTerm] = useState("");
+    const [debouncedSearch] = useDebounce(searchTerm, 500);
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState("all");
@@ -20,19 +22,25 @@ export default function ProductsPage() {
 
     useEffect(() => {
         const fetchProducts = async () => {
+            setLoading(true);
             try {
+                let query = supabase.from('products').select('*');
+
+                if (debouncedSearch) {
+                    query = query.ilike('name', `%${debouncedSearch}%`);
+                }
+
                 // Try 'products' first
-                let { data, error } = await supabase
-                    .from('products')
-                    .select('*')
-                    .order('name');
+                let { data, error } = await query.order('name');
 
                 if (error || !data) {
                     // Try 'produits' (French table name strategy)
-                    const response = await supabase
-                        .from('produits')
-                        .select('*')
-                        .order('name');
+                    let frQuery = supabase.from('produits').select('*');
+                    if (debouncedSearch) {
+                        frQuery = frQuery.ilike('name', `%${debouncedSearch}%`);
+                    }
+
+                    const response = await frQuery.order('name');
 
                     if (!response.error && response.data) {
                         setProducts(response.data);
@@ -55,11 +63,9 @@ export default function ProductsPage() {
         };
 
         fetchProducts();
-    }, []);
+    }, [debouncedSearch]); // Now dependent on debouncedSearch
 
     const filteredProducts = products.filter(product => {
-        const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-
         let matchesStatus = true;
         if (statusFilter === 'low_stock') {
             matchesStatus = product.stock <= (product.alert_threshold || 10) && product.stock > 0;
@@ -69,7 +75,7 @@ export default function ProductsPage() {
             matchesStatus = product.stock > (product.alert_threshold || 10);
         }
 
-        return matchesSearch && matchesStatus;
+        return matchesStatus; // matchesSearch is no longer needed locally
     });
 
     const handleDeleteClick = async (product: Product) => {

@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { renderToStream } from '@react-pdf/renderer';
-import InvoicePDF from '@/components/InvoicePDF';
 import { createClient } from '@/lib/supabase/server';
+import { generateInvoicePDFBuffer } from '@/components/InvoicePDFGenerator';
 import fs from 'fs';
 import path from 'path';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
+export const maxDuration = 60; // Just in case PDF takes long or avoids some static timeout
+export const runtime = 'nodejs';
 
 export async function GET(
     request: NextRequest,
@@ -58,18 +63,18 @@ export async function GET(
             console.warn("Could not load logo.png", e);
         }
 
-        // Generate PDF Stream
-        const stream = await renderToStream(<InvoicePDF order={orderData} invoiceId={invoiceId} logoBase64={logoBase64} />);
+        // Generate PDF Buffer using the separate generator to avoid Next.js 15 Web/Node streams conflicts in the API Route
+        const pdfBuffer = await generateInvoicePDFBuffer(orderData, invoiceId, logoBase64);
 
-        // We can't return the stream directly in Next.js 14+ NextResponse sometimes,
-        // so we collect the chunks into a Buffer first, or return new Response(stream as any).
-        // Returning Response directly with the readable stream is the recommended way.
+        // Convert Node Buffer to standard Uint8Array so Next.js/TypeScript accepts it as BodyInit
+        const uint8Array = new Uint8Array(pdfBuffer);
 
-        return new Response(stream as any, {
+        return new Response(uint8Array, {
             status: 200,
             headers: {
                 'Content-Type': 'application/pdf',
-                'Content-Disposition': `attachment; filename=Facture-${invoiceId}.pdf`
+                'Content-Disposition': `attachment; filename=Facture-${invoiceId}.pdf`,
+                'Content-Length': uint8Array.length.toString(),
             }
         });
 

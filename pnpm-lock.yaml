@@ -65,9 +65,15 @@ dependencies:
   recharts:
     specifier: ^3.7.0
     version: 3.7.0(@types/react@19.2.14)(react-dom@19.0.0)(react-is@19.2.4)(react@19.0.0)(redux@5.0.1)
+  swr:
+    specifier: ^2.4.0
+    version: 2.4.0(react@19.0.0)
   tailwind-merge:
     specifier: ^3.4.0
     version: 3.4.0
+  use-debounce:
+    specifier: ^10.1.0
+    version: 10.1.0(react@19.0.0)
   written-number:
     specifier: ^0.11.1
     version: 0.11.1
@@ -5491,6 +5497,15 @@ packages:
     dependencies:
       punycode: 2.3.1
     dev: true
+
+  /use-debounce@10.1.0(react@19.0.0):
+    resolution: {integrity: sha512-lu87Za35V3n/MyMoEpD5zJv0k7hCn0p+V/fK2kWD+3k2u3kOCwO593UArbczg1fhfs2rqPEnHpULJ3KmGdDzvg==}
+    engines: {node: '>= 16.0.0'}
+    peerDependencies:
+      react: '*'
+    dependencies:
+      react: 19.0.0
+    dev: false
 
   /use-sync-external-store@1.6.0(react@19.0.0):
     resolution: {integrity: sha512-Pp6GSwGP/NrPIrxVFAIkOQeyw8lFenOHijQWkUTrDvrF4ALqylP2C/KCkeS9dpUM3KvYRQhna5vt7IL95+ZQ9w==}

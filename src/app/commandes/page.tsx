@@ -9,6 +9,7 @@ import OrderEditModal from "@/components/orders/OrderEditModal";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatPrice } from "@/config/currency";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import { useDebounce } from "use-debounce";
 
 import { createClient } from "@/lib/supabase";
 
@@ -22,6 +23,7 @@ export default function OrdersPage() {
 
     // Filters State
     const [searchTerm, setSearchTerm] = useState("");
+    const [debouncedSearch] = useDebounce(searchTerm, 500); // 500ms debounce
     const [statusFilter, setStatusFilter] = useState("all");
     const [dateRange, setDateRange] = useState({ start: "", end: "" });
     const [showFilters, setShowFilters] = useState(false);
@@ -47,10 +49,10 @@ export default function OrdersPage() {
                 query = query.eq('status', statusFilter);
             }
 
-            if (searchTerm) {
+            if (debouncedSearch) {
                 // PostgREST ilike on UUIDs works. Searching by name in joined table is trickier, 
                 // so we prioritize ID search to keep it safe without SQL changes.
-                query = query.ilike('id', `%${searchTerm}%`);
+                query = query.ilike('id', `%${debouncedSearch}%`);
             }
 
             if (dateRange.start) {
@@ -84,7 +86,7 @@ export default function OrdersPage() {
         } finally {
             setLoading(false);
         }
-    }, [supabase, currentPage, statusFilter, searchTerm, dateRange, activeTab]);
+    }, [supabase, currentPage, statusFilter, debouncedSearch, dateRange, activeTab]);
 
     // Fetch when filters or page change
     useEffect(() => {
@@ -94,7 +96,7 @@ export default function OrdersPage() {
     // Reset to page 1 when filters change (we don't trigger this explicitly, but tracking changes usually resets page)
     useEffect(() => {
         setCurrentPage(1);
-    }, [statusFilter, searchTerm, dateRange, activeTab]);
+    }, [statusFilter, debouncedSearch, dateRange, activeTab]);
 
     const handleCopyId = (e: React.MouseEvent, id: string) => {
         e.stopPropagation();

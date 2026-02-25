@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import useSWR from "swr";
 import { X, Save, Calendar, User, Flag, CheckCircle, AlertCircle, Clock } from "lucide-react";
 import { Task, User as AppUser, Role } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
@@ -21,22 +22,28 @@ export default function TaskEditModal({ isOpen, onClose, task, onSave, onDelete,
     const supabase = createClient();
     const [formData, setFormData] = useState<Partial<Task>>({});
     const [employees, setEmployees] = useState<{ id: string, fullName: string }[]>([]);
-    const [loadingEmployees, setLoadingEmployees] = useState(false);
-
-    useEffect(() => {
-        const fetchEmployees = async () => {
-            setLoadingEmployees(true);
-            const { data } = await supabase
+    const { data: employeesData, error: employeesError, isLoading: loadingEmployees } = useSWR(
+        isOpen ? 'active_employees' : null,
+        async () => {
+            const { data, error } = await supabase
                 .from('employees')
                 .select('id, fullName')
                 .eq('active', true)
                 .order('fullName');
+            if (error) throw error;
+            return data as { id: string, fullName: string }[];
+        },
+        {
+            revalidateOnFocus: false, // Don't refetch on tab focus to save DB calls
+            dedupingInterval: 60000,  // Cache for 1 minute before refetching on modal open
+        }
+    );
 
-            if (data) setEmployees(data as any);
-            setLoadingEmployees(false);
-        };
-        if (isOpen) fetchEmployees();
-    }, [isOpen, supabase]);
+    useEffect(() => {
+        if (employeesData) {
+            setEmployees(employeesData);
+        }
+    }, [employeesData]);
 
     useEffect(() => {
         if (task) {
