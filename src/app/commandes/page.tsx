@@ -239,7 +239,7 @@ export default function OrdersPage() {
                             setLoading(true);
                             supabase.from('orders').select('*, customer:customers(*), creator:profiles(full_name)')
                                 .order('created_at', { ascending: false })
-                                .then(({ data }) => {
+                                .then(({ data }: { data: any }) => {
                                     setOrders(data || []);
                                     setLoading(false);
                                 });

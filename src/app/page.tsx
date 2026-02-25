@@ -28,14 +28,14 @@ export default function Home() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       setLoading(true);
-      
+
       // 1. Revenue (This Month)
       const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
       const { data: revenueData } = await supabase
         .from('orders')
         .select('total_amount')
         .gte('created_at', firstDayOfMonth);
-      const totalRevenue = revenueData?.reduce((sum, o) => sum + (o.total_amount || 0), 0) || 0;
+      const totalRevenue = revenueData?.reduce((sum: number, o: any) => sum + (o.total_amount || 0), 0) || 0;
 
       // 2. Active Orders
       const { count: ordersCount } = await supabase
@@ -45,8 +45,8 @@ export default function Home() {
 
       // 3. Stock Alerts
       const { data: products } = await supabase.from('products').select('*');
-      const alerts = products?.filter(p => p.stock <= (p.alert_threshold || 10)) || [];
-      
+      const alerts = products?.filter((p: any) => p.stock <= (p.alert_threshold || 10)) || [];
+
       // 4. Urgent Tasks
       const { count: tasksCount } = await supabase
         .from('tasks')
@@ -75,8 +75,8 @@ export default function Home() {
         d.setDate(d.getDate() - (6 - i));
         const dayName = days[d.getDay()];
         const total = salesData
-          ?.filter(s => new Date(s.created_at).toDateString() === d.toDateString())
-          .reduce((sum, s) => sum + (s.total_amount || 0), 0) || 0;
+          ?.filter((s: Record<string, any>) => new Date(s.created_at).toDateString() === d.toDateString())
+          .reduce((sum: number, s: Record<string, any>) => sum + (s.total_amount || 0), 0) || 0;
         return { name: dayName, uv: total };
       });
 
@@ -104,7 +104,7 @@ export default function Home() {
         const d = new Date(twelveMonthsAgo);
         d.setMonth(d.getMonth() + i);
         const monthName = months[d.getMonth()];
-        const count = monthlyData?.filter(o => {
+        const count = monthlyData?.filter((o: any) => {
           const od = new Date(o.created_at);
           return od.getMonth() === d.getMonth() && od.getFullYear() === d.getFullYear();
         }).length || 0;
@@ -126,14 +126,14 @@ export default function Home() {
         start.setDate(start.getDate() + (i * 7));
         const end = new Date(start);
         end.setDate(end.getDate() + 7);
-        
+
         const weekLabel = `S${i + 1}`;
         const total = productionData
-          ?.filter(p => {
+          ?.filter((p: any) => {
             const pd = new Date(p.created_at);
             return pd >= start && pd < end;
           })
-          .reduce((sum, p) => sum + (p.quantity || 0), 0) || 0;
+          .reduce((sum: number, p: any) => sum + (p.quantity || 0), 0) || 0;
         return { name: weekLabel, total };
       });
       setWeeklyProductionData(groupedWeekly);
@@ -219,18 +219,18 @@ export default function Home() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <DashboardChart 
-          title="Nombre de commandes mensuelles" 
-          data={monthlyOrdersData} 
-          dataKey="count" 
-          nameKey="name" 
+        <DashboardChart
+          title="Nombre de commandes mensuelles"
+          data={monthlyOrdersData}
+          dataKey="count"
+          nameKey="name"
           color="#42A5F5"
         />
-        <DashboardChart 
-          title="Volumes de production hebdomadaire (Unités)" 
-          data={weeklyProductionData} 
-          dataKey="total" 
-          nameKey="name" 
+        <DashboardChart
+          title="Volumes de production hebdomadaire (Unités)"
+          data={weeklyProductionData}
+          dataKey="total"
+          nameKey="name"
           color="#66BB6A"
           unit="u"
         />

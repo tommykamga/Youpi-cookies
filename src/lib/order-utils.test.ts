@@ -28,12 +28,12 @@ describe('Order Logic', () => {
 
     describe('canMarkAsPaid', () => {
         it('returns true for PENDING order', () => {
-            const order = { status: 'PENDING' } as Order;
+            const order = { status: 'pending' } as unknown as Order;
             expect(canMarkAsPaid(order)).toBe(true);
         });
 
         it('returns false for PAID order', () => {
-            const order = { status: 'PAID' } as Order;
+            const order = { status: 'paid' } as unknown as Order;
             expect(canMarkAsPaid(order)).toBe(false);
         });
     });

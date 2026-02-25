@@ -25,7 +25,7 @@ export default function ContactsPage() {
         const { data } = await supabase.from('customers').select('*').order('company_name');
         if (data) {
             // Map DB fields to UI fields
-            const mapped: Contact[] = data.map(c => ({
+            const mapped: Contact[] = data.map((c: any) => ({
                 id: c.id,
                 company: c.company_name || c.name || "Inconnu",
                 contactName: c.name || "",

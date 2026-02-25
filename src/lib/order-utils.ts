@@ -19,5 +19,5 @@ export const calculateOrderTotal = (items: OrderItem[]): number => {
  * @returns true if valid, false otherwise
  */
 export const canMarkAsPaid = (order: Order): boolean => {
-    return order.status !== 'PAID' && order.status !== 'CANCELLED';
+    return order.status !== 'paid' && order.status !== 'cancelled';
 };

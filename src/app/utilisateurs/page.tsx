@@ -75,7 +75,7 @@ export default function UsersPage() {
         fetchUsers();
 
         // Get current user ID for self-deletion protection
-        supabase.auth.getUser().then(({ data }) => {
+        supabase.auth.getUser().then(({ data }: { data: any }) => {
             if (data.user) setCurrentUserId(data.user.id);
         });
     }, []);

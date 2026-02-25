@@ -24,7 +24,7 @@ export type Employee = {
     phone?: string;
     email?: string; // Optional link to User
     notes?: string;
-    paymentHistory?: { date: string; amount: number; reference?: string }[];
+    paymentHistory?: { id?: string; date: string; amount: number; reference?: string }[];
 };
 
 

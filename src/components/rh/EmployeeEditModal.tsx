@@ -139,7 +139,7 @@ export default function EmployeeEditModal({ isOpen, onClose, employee, onSave, o
             updatedHistory.splice(index, 1);
 
             // Recompute last payment date
-            const newLastPaymentDate = updatedHistory.length > 0 ? updatedHistory[0].date : null;
+            const newLastPaymentDate = updatedHistory.length > 0 ? updatedHistory[0].date : undefined;
 
             setFormData(prev => ({
                 ...prev,

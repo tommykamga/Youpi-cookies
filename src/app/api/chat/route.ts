@@ -290,15 +290,17 @@ export async function POST(req: Request) {
                 chatMessages.push(choice.message);
 
                 for (const toolCall of choice.message.tool_calls) {
-                    const result = await executeTool(
-                        toolCall.function.name,
-                        JSON.parse(toolCall.function.arguments)
-                    );
-                    chatMessages.push({
-                        role: 'tool',
-                        tool_call_id: toolCall.id,
-                        content: result,
-                    });
+                    if (toolCall.type === 'function') {
+                        const result = await executeTool(
+                            toolCall.function.name,
+                            JSON.parse(toolCall.function.arguments)
+                        );
+                        chatMessages.push({
+                            role: 'tool',
+                            tool_call_id: toolCall.id,
+                            content: result,
+                        });
+                    }
                 }
                 // Continue the loop to let the model respond with the tool results
                 continue;
