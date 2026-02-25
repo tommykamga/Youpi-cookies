@@ -28,66 +28,73 @@ export default function OrdersPage() {
     const [activeTab, setActiveTab] = useState<'actives' | 'archivees'>('actives');
     const [copiedId, setCopiedId] = useState<string | null>(null);
 
+    const [totalCount, setTotalCount] = useState(0);
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 20;
+
+    const fetchOrders = useCallback(async () => {
+        setLoading(true);
+        try {
+            const from = (currentPage - 1) * ITEMS_PER_PAGE;
+            const to = from + ITEMS_PER_PAGE - 1;
+
+            let query = supabase
+                .from('orders')
+                .select('*, customer:customers(*), creator:profiles(full_name)', { count: 'exact' });
+
+            // Apply Filters Server-Side
+            if (statusFilter !== "all") {
+                query = query.eq('status', statusFilter);
+            }
+
+            if (searchTerm) {
+                // PostgREST ilike on UUIDs works. Searching by name in joined table is trickier, 
+                // so we prioritize ID search to keep it safe without SQL changes.
+                query = query.ilike('id', `%${searchTerm}%`);
+            }
+
+            if (dateRange.start) {
+                query = query.gte('created_at', new Date(dateRange.start).toISOString());
+            }
+            if (dateRange.end) {
+                const end = new Date(dateRange.end);
+                end.setDate(end.getDate() + 1); // include the whole end day
+                query = query.lt('created_at', end.toISOString());
+            }
+
+            if (activeTab === 'actives') {
+                query = query.not('status', 'in', '("delivered","paid")');
+            } else {
+                query = query.in('status', ['delivered', 'paid']);
+            }
+
+            const { data, count, error } = await query
+                .order('created_at', { ascending: false })
+                .range(from, to);
+
+            if (error) {
+                console.error("[Diagnostic] FETCH ERROR:", error);
+                throw error;
+            }
+
+            setOrders(data || []);
+            if (count !== null) setTotalCount(count);
+        } catch (err) {
+            console.error("Error fetching orders:", err);
+        } finally {
+            setLoading(false);
+        }
+    }, [supabase, currentPage, statusFilter, searchTerm, dateRange, activeTab]);
+
+    // Fetch when filters or page change
     useEffect(() => {
-        const fetchOrders = async () => {
-            try {
-                const { data, error } = await supabase
-                    .from('orders')
-                    .select('*, customer:customers(*), creator:profiles(full_name)')
-                    .order('created_at', { ascending: false });
-
-                if (error) {
-                    console.error("[Diagnostic] FETCH ERROR:", error.message, error.details, error.hint);
-                    throw error;
-                }
-
-                // Professional Diagnostic Logging
-                console.log(`[Diagnostic] Orders fetched: ${data?.length || 0}`);
-                if (data && data.length > 0) {
-                    console.log("[Diagnostic] RAW Data structure:", data[0]);
-                    console.log("[Diagnostic] Customer object:", data[0].customer);
-                    console.log("[Diagnostic] Customer Name:", (data[0].customer as any)?.name);
-                } else {
-                    console.log("[Diagnostic] Data is empty but no error was thrown.");
-                }
-
-                setOrders(data || []);
-            } catch (err) {
-                console.error("Error fetching orders:", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchOrders();
-    }, []);
+    }, [fetchOrders]);
 
-    // Filter Logic
-    const filteredOrders = useMemo(() => {
-        return orders.filter(order => {
-            const s = searchTerm.toLowerCase();
-            const matchesSearch = !s || (
-                (order.id?.toLowerCase()?.includes(s)) ||
-                ((order.customer as any)?.name?.toLowerCase()?.includes(s)) ||
-                ((order.customer as any)?.company_name?.toLowerCase()?.includes(s))
-            );
-
-            const matchesStatus = statusFilter === "all" || order.status === statusFilter;
-
-            let matchesDate = true;
-            if (dateRange.start && order.created_at) {
-                matchesDate = matchesDate && new Date(order.created_at) >= new Date(dateRange.start);
-            }
-            if (dateRange.end && order.created_at) {
-                matchesDate = matchesDate && new Date(order.created_at) <= new Date(dateRange.end);
-            }
-
-            const isArchived = order.status === 'delivered' || order.status === 'paid';
-            const matchesTab = activeTab === 'actives' ? !isArchived : isArchived;
-
-            return matchesSearch && matchesStatus && matchesDate && matchesTab;
-        });
-    }, [orders, searchTerm, statusFilter, dateRange, activeTab]);
+    // Reset to page 1 when filters change (we don't trigger this explicitly, but tracking changes usually resets page)
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [statusFilter, searchTerm, dateRange, activeTab]);
 
     const handleCopyId = (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
@@ -230,19 +237,14 @@ export default function OrdersPage() {
                 <h1 className="text-2xl font-bold text-[var(--cookie-brown)]">
                     Gestion Commandes
                     <span className="ml-2 text-sm font-normal text-gray-400">
-                        ({filteredOrders.length} sur {orders.length})
+                        ({orders.length} affichées sur {totalCount})
                     </span>
                 </h1>
                 <div className="flex gap-2">
                     <button
                         onClick={() => {
                             setLoading(true);
-                            supabase.from('orders').select('*, customer:customers(*), creator:profiles(full_name)')
-                                .order('created_at', { ascending: false })
-                                .then(({ data }: { data: any }) => {
-                                    setOrders(data || []);
-                                    setLoading(false);
-                                });
+                            fetchOrders();
                         }}
                         className="bg-gray-100 p-2 rounded-lg text-gray-500 hover:text-[var(--cookie-brown)]"
                         title="Actualiser"
@@ -376,7 +378,7 @@ export default function OrdersPage() {
                             </thead>
                             <tbody className="divide-y divide-gray-100">
                                 <AnimatePresence>
-                                    {filteredOrders.map((order) => (
+                                    {orders.map((order) => (
                                         <motion.tr
                                             key={order.id}
                                             layout
@@ -457,7 +459,7 @@ export default function OrdersPage() {
                                         </motion.tr>
                                     ))}
                                 </AnimatePresence>
-                                {filteredOrders.length === 0 && (
+                                {orders.length === 0 && (
                                     <tr>
                                         <td colSpan={6} className="px-6 py-12 text-center text-gray-400 italic">
                                             {orders.length === 0
@@ -477,7 +479,7 @@ export default function OrdersPage() {
                         </table>
                     )}
 
-                    {filteredOrders.length === 0 && (
+                    {orders.length === 0 && (
                         <div className="p-8 text-center text-gray-500">
                             Aucune commande trouvée pour ces critères.
                         </div>
@@ -485,11 +487,24 @@ export default function OrdersPage() {
                 </div>
 
                 {/* Pagination Placeholder */}
-                <div className="p-4 border-t border-gray-100 flex justify-between items-center text-sm text-gray-500">
-                    <span>Affichage {filteredOrders.length} résultats</span>
+                <div className="p-4 border-t border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-gray-500">
+                    <span>Affichage de {orders.length} résultat(s) sur {totalCount} au total</span>
                     <div className="flex gap-2">
-                        <button className="px-3 py-1 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50" disabled>Précédent</button>
-                        <button className="px-3 py-1 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50" disabled>Suivant</button>
+                        <button
+                            className="px-4 py-2 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                            disabled={currentPage === 1 || loading}
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        >
+                            Précédent
+                        </button>
+                        <span className="px-4 py-2 font-medium text-[var(--cookie-brown)] bg-orange-50 rounded">Page {currentPage}</span>
+                        <button
+                            className="px-4 py-2 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                            disabled={currentPage * ITEMS_PER_PAGE >= totalCount || loading}
+                            onClick={() => setCurrentPage(p => p + 1)}
+                        >
+                            Suivant
+                        </button>
                     </div>
                 </div>
             </div>

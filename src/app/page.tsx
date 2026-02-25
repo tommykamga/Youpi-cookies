@@ -45,7 +45,7 @@ export default function Home() {
         .in('status', ['new', 'preparing', 'ready']);
 
       // 3. Stock Alerts
-      const { data: products } = await supabase.from('products').select('*');
+      const { data: products } = await supabase.from('products').select('id, name, stock, alert_threshold, unit');
       const alerts = products?.filter((p: any) => p.stock <= (p.alert_threshold || 10)) || [];
 
       // 4. Urgent Tasks
@@ -58,7 +58,7 @@ export default function Home() {
       // 5. Recent Orders
       const { data: latestOrders } = await supabase
         .from('orders')
-        .select('*, customers(name)')
+        .select('id, total_amount, status, created_at, customer:customers(name)')
         .order('created_at', { ascending: false })
         .limit(5);
 
