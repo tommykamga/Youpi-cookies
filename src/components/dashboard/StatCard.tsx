@@ -1,4 +1,5 @@
 
+import React from "react";
 import { LucideIcon } from "lucide-react";
 
 interface StatCardProps {
@@ -10,7 +11,7 @@ interface StatCardProps {
     color?: string; // Tailwind class for text color
 }
 
-export default function StatCard({ title, value, icon: Icon, trend, trendUp, color = "text-[var(--cookie-brown)]" }: StatCardProps) {
+function StatCard({ title, value, icon: Icon, trend, trendUp, color = "text-[var(--cookie-brown)]" }: StatCardProps) {
     return (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
             <div className="flex items-center justify-between">
@@ -33,3 +34,4 @@ export default function StatCard({ title, value, icon: Icon, trend, trendUp, col
         </div>
     );
 }
+export default React.memo(StatCard);

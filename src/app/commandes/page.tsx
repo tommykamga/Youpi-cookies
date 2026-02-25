@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Plus, Search, Filter, Calendar, Loader2, Pencil, FileText, ChevronDown, Trash2, Copy, CheckCircle } from "lucide-react";
 import StatusBadge from "@/components/ui/StatusBadge";
@@ -101,7 +101,7 @@ export default function OrdersPage() {
         setIsModalOpen(true);
     };
 
-    const handleSaveOrder = async (updatedOrder: Partial<Order>) => {
+    const handleSaveOrder = React.useCallback(async (updatedOrder: Partial<Order>) => {
         try {
             console.log("[Diagnostic] Saving order:", updatedOrder);
 
@@ -173,9 +173,9 @@ export default function OrdersPage() {
             console.error("Error saving order:", err);
             alert(`Erreur lors de la sauvegarde: ${err.message}`);
         }
-    };
+    }, [supabase]);
 
-    const handleDeleteOrder = async (orderId: string) => {
+    const handleDeleteOrder = React.useCallback(async (orderId: string) => {
         try {
             console.log(`[Diagnostic] Attempting to delete order: ${orderId}`);
 
@@ -213,7 +213,7 @@ export default function OrdersPage() {
 
             alert(`Erreur lors de la suppression:\nCode: ${err?.code || 'Inconnu'}\nMessage: ${err?.message || 'Erreur interne'}\nDétails: ${err?.details || ''}`);
         }
-    };
+    }, [supabase, selectedOrder?.id]);
 
 
     return (

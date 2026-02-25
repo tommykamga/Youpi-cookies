@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Plus, Search, Filter, MoreHorizontal, Mail, Phone, MapPin, ArrowRight } from "lucide-react";
 import StatusBadge from "@/components/ui/StatusBadge";
+import { formatPrice } from "@/config/currency";
 import { Customer } from "@/types";
 
 // Mock Data
@@ -160,7 +161,7 @@ export default function ClientsPage() {
                                         <StatusBadge status={customer.status} />
                                     </td>
                                     <td className={`px-6 py-4 text-right font-bold ${customer.balance > 0 ? 'text-red-500' : 'text-green-600'}`}>
-                                        {customer.balance.toLocaleString()} FCFA
+                                        {formatPrice(customer.balance)}
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">

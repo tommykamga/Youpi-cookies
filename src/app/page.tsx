@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase";
 import StatCard from "@/components/dashboard/StatCard";
 import RecentOrders from "@/components/dashboard/RecentOrders";
 import SalesChart from "@/components/dashboard/SalesChart";
 import DashboardChart from "@/components/dashboard/DashboardChart";
-import { Banknote, ShoppingBag, AlertTriangle, CheckCircle, Loader2 } from "lucide-react";
+import { Banknote, ShoppingBag, AlertTriangle, CheckCircle, Loader2, ArrowRight } from "lucide-react";
 import { formatPrice } from "@/config/currency";
 import { Order, Product, Task } from "@/types";
+import Link from "next/link";
 
 export default function Home() {
   const supabase = createClient();
@@ -212,9 +213,9 @@ export default function Home() {
               <li className="text-sm text-gray-500 italic p-2 text-center">Aucune alerte stock</li>
             )}
           </ul>
-          <button className="text-sm text-red-600 font-medium mt-4 hover:underline">
-            Commander du stock &rarr;
-          </button>
+          <Link href="/stocks" className="flex items-center gap-2 text-sm text-red-600 font-medium mt-4 hover:underline">
+            Commander du stock <ArrowRight className="w-4 h-4" />
+          </Link>
         </div>
       </div>
 

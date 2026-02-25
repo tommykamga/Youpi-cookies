@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Search, Filter, FileText, Download, Printer, Loader2, ArrowRight, PlusCircle } from "lucide-react";
+import { formatPrice } from "@/config/currency";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { Invoice } from "@/types";
 import { createClient } from "@/lib/supabase";
@@ -20,19 +21,19 @@ export default function InvoicesPage() {
             const { data, error } = await supabase
                 .from('invoices')
                 .select(`
-                    *,
-                    order:orders (
-                        id,
-                        total_amount,
-                        status,
-                        customer:customers (
-                            id,
-                            company_name,
-                            name,
-                            email
-                        )
-                    )
-                `)
+    *,
+    order: orders(
+        id,
+        total_amount,
+        status,
+        customer: customers(
+            id,
+            company_name,
+            name,
+            email
+        )
+    )
+        `)
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
@@ -52,7 +53,7 @@ export default function InvoicesPage() {
     const handleDownload = async (orderId: string) => {
         try {
             setActionId(orderId);
-            const response = await fetch(`/api/invoices/${orderId}/pdf`);
+            const response = await fetch(`/ api / invoices / ${orderId}/pdf`);
             if (!response.ok) throw new Error("Erreur de génération PDF");
 
             const blob = await response.blob();
@@ -169,7 +170,7 @@ export default function InvoicesPage() {
                                             {new Date(invoice.created_at).toLocaleDateString('fr-FR')}
                                         </td>
                                         <td className="px-6 py-4 font-bold text-gray-900">
-                                            {invoice.total_amount?.toLocaleString()} FCFA
+                                            {formatPrice(invoice.total_amount)}
                                         </td>
                                         <td className="px-6 py-4">
                                             <StatusBadge status={invoice.status} />

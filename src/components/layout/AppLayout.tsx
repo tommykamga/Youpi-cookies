@@ -7,6 +7,7 @@ import Header from "./Header";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useInactivityLogout } from "@/hooks/useInactivityLogout";
 import { useSessionHeartbeat } from "@/hooks/useSessionHeartbeat";
+import ErrorBoundary from "@/components/ui/ErrorBoundary";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -85,7 +86,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="flex-1 flex flex-col h-full overflow-hidden w-full pt-16 md:pt-0">
                 <Header onMenuClick={toggleSidebar} />
                 <main className="flex-1 overflow-y-auto p-4 md:p-6 w-full">
-                    {children}
+                    <ErrorBoundary>
+                        {children}
+                    </ErrorBoundary>
                 </main>
             </div>
         </div>

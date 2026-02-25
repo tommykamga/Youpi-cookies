@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { DeliveryCost } from '@/types';
+import { formatPrice } from "@/config/currency";
 
 interface Totals {
     cost: number;
@@ -21,7 +22,7 @@ export const exportTransportPDF = (data: DeliveryCost[], periodLabel: string, to
     doc.text(`Généré le: ${new Date().toLocaleDateString('fr-FR')}`, 14, 35);
 
     // Summary
-    doc.text(`Total Coût: ${totals.cost.toLocaleString('fr-FR')} FCFA`, 14, 45);
+    doc.text(`Total Coût: ${formatPrice(totals.cost)}`, 14, 45);
     doc.text(`Nombre de courses: ${totals.count}`, 14, 50);
 
     // Table
@@ -30,7 +31,7 @@ export const exportTransportPDF = (data: DeliveryCost[], periodLabel: string, to
         d.destination,
         d.transport_type,
         d.driver_name,
-        `${d.cost} FCFA`
+        formatPrice(d.cost)
     ]);
 
     autoTable(doc, {

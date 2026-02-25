@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { DeliveryCost } from "@/types";
+import { formatPrice } from "@/config/currency";
 import { Download, FileText, Filter, Calendar, Truck, RefreshCw, FileSpreadsheet } from "lucide-react";
 import { exportTransportPDF } from "@/lib/exportPDF";
 import { exportTransportExcel } from "@/lib/exportExcel";
@@ -168,7 +169,7 @@ export default function DeliveryReports({ deliveries }: DeliveryReportsProps) {
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                     <div className="text-sm text-gray-500">Coût Total (Période)</div>
                     <div className="text-2xl font-bold text-[var(--cookie-brown)]">
-                        {totalCost.toLocaleString('fr-FR')} FCFA
+                        {formatPrice(totalCost)}
                     </div>
                 </div>
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
@@ -207,7 +208,7 @@ export default function DeliveryReports({ deliveries }: DeliveryReportsProps) {
                                 <td className="px-6 py-3">{item.driver_name}</td>
                                 <td className="px-6 py-3 text-right">{item.cartons || "-"}</td>
                                 <td className="px-6 py-3 text-right font-medium text-[var(--cookie-brown)]">
-                                    {item.cost?.toLocaleString('fr-FR')} FCFA
+                                    {formatPrice(item.cost)}
                                 </td>
                             </tr>
                         )) : (
@@ -225,7 +226,7 @@ export default function DeliveryReports({ deliveries }: DeliveryReportsProps) {
                                     TOTAL {periodLabel} :
                                 </td>
                                 <td className="px-6 py-4 text-right text-[var(--cookie-brown)]">
-                                    {totalCost.toLocaleString('fr-FR')} FCFA
+                                    {formatPrice(totalCost)}
                                 </td>
                                 <td className="px-6 py-4 text-center">
                                     {totalCartons} cartons
