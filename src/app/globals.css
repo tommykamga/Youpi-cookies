@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+:root {
+  /* Warm Colors for Cookie PME */
+  --cookie-brown: #5D4037;
+  --cookie-brown-light: #8D6E63;
+  --cookie-beige: #F5F5DC;
+  --cookie-beige-dark: #D7CCC8;
+  --cookie-cream: #FFF8E1;
+  --cookie-accent: #FFB74D;
+  --status-success: #4CAF50;
+  --status-warning: #FF9800;
+  --status-error: #F44336;
+
+  --background: var(--cookie-cream);
+  --foreground: #3E2723;
+
+  --sidebar-bg: #4E342E;
+  --sidebar-text: #FFFFFF;
+  /* White for max contrast */
+  --sidebar-hover: #6D4C41;
+
+  --card-bg: #FFFFFF;
+  --border-color: #D7CCC8;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--cookie-brown);
+  --color-primary-foreground: #FFFFFF;
+  --color-secondary: var(--cookie-beige);
+  --color-secondary-foreground: var(--cookie-brown);
+  --color-accent: var(--cookie-accent);
+  --color-sidebar: var(--sidebar-bg);
+  --color-sidebar-foreground: var(--sidebar-text);
+  --color-card: var(--card-bg);
+  --color-border: var(--border-color);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Custom Utilities */
+.btn-primary {
+  @apply bg-[var(--cookie-brown)] text-white px-4 py-2 rounded-md hover:bg-[var(--cookie-brown-light)] transition-colors;
+}
+
+.card {
+  @apply bg-[var(--card-bg)] border border-[var(--border-color)] rounded-lg shadow-sm p-4;
+}
+
+@layer utilities {
+  .menu-link {
+    @apply flex items-center gap-4 px-4 py-3 rounded-xl font-medium transition-all;
+  }
+}
+
+/* FIX Z-INDEX mobile */
+@supports (-webkit-touch-callout: none) {
+
+  /* Adapted for React State implementation if needed, but keeping user's snippet primarily */
+  [data-md]:checked~aside {
+    transform: translateX(0) !important;
+  }
+}
+
+/* 
+   FIX: Force SVG visibility globally 
+   User reported "hidden=true" class on Windows/PC hiding all icons.
+   This overrides default hidden behavior for Lucide icons.
+*/
+svg.lucide {
+  display: inline-block !important;
+}
+svg.lucide.hidden {
+  display: inline-block !important;
+}
+[hidden] {
+  display: none !important;
+}
+/* Exception: If we really want to hide an icon, we can use 'force-hidden' or similar, but for now we fix the bug */
